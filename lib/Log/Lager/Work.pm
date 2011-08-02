@@ -27,6 +27,9 @@ sub _init {
             values
             accumulator
             result_code
+            namespace
+            name
+            result
         );
 
     $self->SUPER::_init( context => 1, message => [], @_ );
@@ -66,6 +69,7 @@ sub message {
         }
     ];
 
+    return $message;
 }
 
 
