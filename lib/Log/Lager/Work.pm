@@ -3,50 +3,70 @@ use strict;
 use warnings;
 
 use Log::Work qw( :simple );
-
-use Time::HiRes qw( time );
-use Scalar::Util qw(weaken blessed );
-
-use Exporter qw( import );
-our @EXPORT = qw( EVENT REMOTE WORK );
-our @EXPORT_OK = qw(
-        WORK REMOTE EVENT
-
-        RESULT_NORMAL         RESULT_INVALID
-        RESULT_EXCEPTION      RESULT_FAILURE
-
-        record_value
-        add_metric
-        set_accumulator
-);
-our %EXPORT_TAGS = (
-        simple        => [qw( WORK
-                              EVENT
-                              RESULT_NORMAL    RESULT_INVALID
-                              RESULT_EXCEPTION RESULT_FAILURE
-                         )],
-        metadata      => [qw( add_metric record_value set_accumulator set_result )],
-        values        => [qw( record_value )],
-        metrics       => [qw( add_metric )],
-        accumulators  => [qw( set_accumulator inherit_accumulator )],
-);
-
-our @ISA = 'Log::Work';
+use Log::Lager::Message;
 
 
-sub finish {
+our @ISA = 'Log::Lager::Message';
+
+
+sub _init {
     my $self = shift;
+    my $work = shift;
 
-    return Log::Lager::TypedMessage->new(UnitofWork => $self->SUPER::finish(@_) );
+    $self->{provenance_id} = $work->{id};
+    $self->{type} = "UOW";
+
+    $self->{$_} = $work->{$_} 
+        for qw(
+            id
+            start_time
+            end_time
+            duration
+            status
+            metrics
+            values
+            accumulator
+            result_code
+        );
+
+    $self->SUPER::_init( context => 1, message => [], @_ );
 }
 
-# ----------------------------------------------------------
-#   High level interface methods
-# ----------------------------------------------------------
+sub _header {
+    my $self = shift;
 
+    my @header = map $self->{$_}, qw(
+        timestamp
+        type
+        loglevel
+        hostname
+        executable
+        process_id
+        thread_id
+        id
+        namespace
+        name
+    );
 
-# ----------------------------------------------------------
-#  Task methods
-# ----------------------------------------------------------
+    return \@header;
+}
+
+sub message {
+    my $self = shift;
+
+    my $message = [
+        { ouw => {
+                start    => $self->{start_time},
+                end      => $self->{end_time},
+                duration => $self->{duration} * 1000,
+                result   => $self->{result},
+                metrics  => $self->{metrics}, 
+                values   => $self->{values},
+            }
+        }
+    ];
+
+}
+
 
 1;

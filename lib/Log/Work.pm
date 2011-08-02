@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 use Log::Lager;
-use Log::Lager::TypedMessage;
+use Log::Lager::Work;
 use Log::ProvenanceId;
 
 use Time::HiRes qw( time );
@@ -63,7 +63,7 @@ our $CURRENT_UNIT = undef;
     my @ATTRIBUTES = qw(
             parent      children
             id          counter
-            name        package
+            name        namespace
             start_time  end_time
             finished    duration
             result      result_code
@@ -165,7 +165,7 @@ sub start {
 
         id          => $pvid,
         name        => $name,
-        package     => $package,
+        namespace   => $package,
 
         start_time  => time,
         end_time    => undef,
@@ -239,7 +239,7 @@ sub finish {
 
     $self->{finish} = 1;
 
-    return Log::Lager::TypedMessage->new( WORK => { work => \%work } );
+    return Log::Lager::Work->new( $self );
 }
 
 sub current_unit { $CURRENT_UNIT }
@@ -265,6 +265,7 @@ sub WORK (&$;$) {
 
     return $u->finish;
 }
+
 sub REMOTE (&$;$) {
     my $code = shift;
     my $name = shift;
@@ -379,7 +380,8 @@ sub add_metric {
     }
 
     # Finally adjust the metric
-    $metric->{value} += $amount;
+    $metric->{count}++;
+    $metric->{total} += $amount;
     $metric->{unit}   = $unit 
         if defined $unit;
 
