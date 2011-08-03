@@ -83,6 +83,21 @@ our $CURRENT_UNIT = undef;
     }
 };
 
+BEGIN {
+
+    for my $result_type (qw( INVALID EXCEPTION FAILURE NORMAL )) {
+
+        my $sub = sub {
+            my $self = @_ ? shift : $CURRENT_UNIT;
+            $self->{result} = $result_type;
+            ();
+        };
+        no strict 'refs';
+        *{"RESULT_$result_type"} = $sub;
+
+    }
+}
+
 # Special attribute accessors
 sub _children {
     my $self = shift;
@@ -219,7 +234,7 @@ sub finish {
 
     if( $self->{finished} ) {
         ERROR 'Attempt to log previously finished Work', $self;
-        $self->RESULT_INVALID 
+        $self->RESULT_INVALID
     }
 
     my @children = $self->_get_children;
@@ -231,11 +246,7 @@ sub finish {
     $self->RESULT_INVALID
         unless $self->has_result;
 
-    my %work;
-    @work{qw/ start_time end_time duration status metrics values accumulator result_code /}
-       = @{$self}{qw/ start_time end_time duration status metrics values accumulator result_code/};
-
-    $self->{finish} = 1;
+    $self->{finished} = 1;
 
     return Log::Lager::Work->new( $self );
 }
@@ -290,10 +301,6 @@ sub REMOTE (&$;$) {
 
 
 
-sub RESULT_INVALID   () { set_result('INVALID');   }
-sub RESULT_EXCEPTION () { set_result('EXCEPTION'); }
-sub RESULT_FAILURE   () { set_result('FAILURE');   }
-sub RESULT_NORMAL    () { set_result('NORMAL');    }
 
 # ----------------------------------------------------------
 #  Task methods
@@ -399,7 +406,7 @@ sub set_result {
 sub has_result {
     my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
 
-    return if defined $self->{result};
+    return defined $self->{result};
 }
 
 sub _header {

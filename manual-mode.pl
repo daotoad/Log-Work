@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use Log::Lager qw( FEWIDTG );
-use Log::Work qw(add_metric);
+use Log::Work qw(add_metric RESULT_NORMAL RESULT_FAILURE);
 
 use Log::ProvenanceId 'FU.B234';
 
@@ -23,12 +23,7 @@ while( @units ) {
 
     my $result;
     eval {
-        $result = $u->step( 
-            sub {
-                add_metric( 'callcount', 1, 'iterations' );
-                0 == int rand CHANCE
-            }
-        );
+        $result = $u->step( \&worker);
         1;
     }
     or do {
@@ -48,6 +43,17 @@ DONE:
 }
 
 
+sub worker {
+    my $rand = int rand CHANCE;
+
+    add_metric( 'callcount', 1, 'iterations' );
+
+    die "I feel sick\n" if $rand == CHANCE-1;
+
+    RESULT_FAILURE if $rand == int( CHANCE / 2 );
+
+    return $rand == 0;
+}
 
 
 

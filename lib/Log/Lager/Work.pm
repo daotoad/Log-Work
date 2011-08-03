@@ -35,6 +35,7 @@ sub _init {
     $self->SUPER::_init( context => 1, message => [], @_ );
 }
 
+
 sub _header {
     my $self = shift;
 
