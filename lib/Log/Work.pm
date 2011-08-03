@@ -191,9 +191,7 @@ sub step {
 
     local $CURRENT_UNIT = $self;
 
-    $code->();
-
-    return $self;
+    return $code->();
 }
 
 sub finish {
