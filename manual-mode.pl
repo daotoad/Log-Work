@@ -1,15 +1,18 @@
 use strict;
 use warnings;
 
-use Log::Lager qw( FEWIDTG );
+use Log::Lager qw( FEWIDTG  stack FEWITDG pretty FEWITDG );
 use Log::Work qw(add_metric RESULT_NORMAL RESULT_FAILURE);
+use Log::Lager::Work;
+
+Log::Work->on_finish( 'Log::Lager::Work', 'new' );
+Log::Work->on_error( sub { ERROR @_ } );
 
 use Log::ProvenanceId 'FU.B234';
 
 use constant UNITS => 5;
 use constant CHANCE => 100;
 
-use Log::Lager 'I';
 
 # Start 5 units of work that will count to 10
 my @units = map Log::Work->start(dumb_name(6)), 1..UNITS;

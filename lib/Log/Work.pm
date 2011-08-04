@@ -7,7 +7,7 @@ use Log::Lager::Work;
 use Log::ProvenanceId;
 
 use Time::HiRes qw( time );
-use Scalar::Util qw(weaken blessed );
+use Scalar::Util qw(weaken blessed reftype );
 
 use Exporter qw( import );
 our @EXPORT_OK = qw(
@@ -58,6 +58,12 @@ our %EXPORT_TAGS = (
 # managed via dynamic scoping using local().
 our $CURRENT_UNIT = undef;
 
+our $DEFAULT_ON_ERROR  = sub { warn "@_"};
+our $DEFAULT_ON_FINISH = sub { return shift };
+
+our $ON_ERROR  = $DEFAULT_ON_ERROR;
+our $ON_FINISH = $DEFAULT_ON_FINISH;
+
 {    # Attribute Setup
 
     my @ATTRIBUTES = qw(
@@ -97,6 +103,42 @@ BEGIN {
 
     }
 }
+
+sub _set_handler {
+    my $target  = shift;
+    my $default = shift;
+
+    if( @_ == 1 ) {
+        my $coderef = shift;
+        return unless defined $coderef;
+
+        $$target = $coderef eq 'DEFAULT'      ?  $default
+                 : reftype $coderef eq 'CODE' ? $coderef
+                 : $$target;
+    }
+    elsif( @_ == 2 ) {
+        my ( $class, $method ) = @_;
+        my $resolved = $class->can($method);
+
+        return unless $resolved;
+        $$target = sub{ $class->$method(@_) };
+    }
+
+    return;
+}
+
+sub on_error {
+    shift; # Remove invocant
+    _set_handler( \$ON_ERROR, $DEFAULT_ON_ERROR, @_ );
+    return;
+}
+
+sub on_finish {
+    shift; # Remove invocant
+    _set_handler( \$ON_FINISH, $DEFAULT_ON_FINISH, @_ );
+    return;
+}
+
 
 # Special attribute accessors
 sub _children {
@@ -163,10 +205,11 @@ sub get_metrics {
 # ----------------------------------------------------------
 
 sub start {
+    $ON_ERROR->( "STARTING WORK", @_ );
     my $class = shift;
     my $name  = shift;
 
-    my $pvid = @_            ? shift 
+    my $pvid = @_            ? shift
              : $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id
              : Log::ProvenanceId::new_root_id;
 
@@ -213,7 +256,7 @@ sub finish {
     my $self = shift;
 
     unless( eval { $self->isa('Log::Work') } ) {
-        ERROR "Invalid Work specified for finish", $self;
+        $ON_ERROR->( "Invalid Work specified for finish", $self );
         $self = Log::Work->new(
             parent      => 'INVALID',
             children    => {}, 
@@ -233,12 +276,12 @@ sub finish {
     }
 
     if( $self->{finished} ) {
-        ERROR 'Attempt to log previously finished Work', $self;
+        $ON_ERROR->( 'Attempt to log previously finished Work', $self );
         $self->RESULT_INVALID
     }
 
     my @children = $self->_get_children;
-    $_->finish for grep defined, @children;
+    $_->finish for grep !$_->{finished}, grep defined, @children;
 
     $self->{end_time} = time;
     $self->{duration} = $self->{end_time} - $self->{start_time};
@@ -248,7 +291,7 @@ sub finish {
 
     $self->{finished} = 1;
 
-    return Log::Lager::Work->new( $self );
+    return $ON_FINISH->( $self );
 }
 
 sub current_unit { $CURRENT_UNIT }
@@ -282,7 +325,7 @@ sub REMOTE (&$;$) {
              : $CURRENT_UNIT ? $CURRENT_UNIT->new_remote_id
              : Log::ProvenanceId::new_root_id;
 
-    my $u = __PACKAGE__->start(@_);
+    my $u = __PACKAGE__->start($name, $pvid, @_);
 
     local $@;
     eval {
@@ -310,7 +353,7 @@ sub new_child_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        # ERROR 'Invalid unit of work specified.';
+        $ON_ERROR->( 'Invalid unit of work specified.' );
         return Log::ProvenanceId::new_root_id();
     }
 
@@ -326,7 +369,7 @@ sub new_remote_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        # ERROR 'Invalid unit of work specified.';
+        $ON_ERROR->( 'Invalid unit of work specified.' );
         return Log::ProvenanceId::new_root_id();
     }
 
@@ -347,9 +390,7 @@ sub record_value {
     my $values = $self->_values;
 
     if( exists $values->{$name} ) {
-        $self->step(sub {
-            #ERROR EVENT "OH SHIT - That value is already set!", $name, $values->{$name};
-        });
+        $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
     }
 
     $values->{$name} = $value;
@@ -378,9 +419,7 @@ sub add_metric {
             and
         $unit ne $metric->{unit}
     ) {
-        $self->step(sub {
-            #ERROR "OH SHIT - That metric has a different unit";
-        });
+        $ON_ERROR->( "ERROR - That metric has a different unit" );
         return $self;
     }
 

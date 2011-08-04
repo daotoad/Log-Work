@@ -8,7 +8,6 @@ use Log::Lager::Message;
 
 our @ISA = 'Log::Lager::Message';
 
-
 sub _init {
     my $self = shift;
     my $work = shift;
@@ -32,7 +31,7 @@ sub _init {
             result
         );
 
-    $self->SUPER::_init( context => 1, message => [], @_ );
+    $self->SUPER::_init( context => 1, message => [], want_bits => 1, @_ );
 }
 
 
@@ -67,7 +66,7 @@ sub message {
                 metrics  => $self->{metrics}, 
                 values   => $self->{values},
             }
-        }
+        },
     ];
 
     return $message;
