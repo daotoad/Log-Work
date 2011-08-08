@@ -1,9 +1,9 @@
 package Log::Work;
+# ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
+
 use strict;
 use warnings;
 
-use Log::Lager;
-use Log::Lager::Work;
 use Log::ProvenanceId;
 
 use Time::HiRes qw( time );
