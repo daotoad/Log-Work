@@ -1,4 +1,7 @@
 package Log::ProvenanceId;
+BEGIN {
+  $Log::ProvenanceId::VERSION = '0.01';
+}
 
 use strict;
 use warnings;
