@@ -1,0 +1,15 @@
+LICENSE
+MANIFEST
+META.yml
+Makefile.PL
+README
+README.release
+dist.ini
+examples/manual-mode.pl
+examples/test.pl
+lib/Log/Lager/Work.pm
+lib/Log/ProvenanceId.pm
+lib/Log/Work.pm
+t/01-load.t
+t/release-pod-coverage.t
+t/release-pod-syntax.t

@@ -1,4 +1,7 @@
 package Log::Lager::Work;
+{
+  $Log::Lager::Work::VERSION = '0.01.01';
+}
 use strict;
 use warnings;
 

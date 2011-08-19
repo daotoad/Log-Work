@@ -1,4 +1,7 @@
 package Log::Work;
+{
+  $Log::Work::VERSION = '0.01.01';
+}
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
 use strict;
