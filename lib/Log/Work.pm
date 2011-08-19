@@ -58,7 +58,7 @@ our %EXPORT_TAGS = (
 # managed via dynamic scoping using local().
 our $CURRENT_UNIT = undef;
 
-our $DEFAULT_ON_ERROR  = sub { warn "@_"};
+our $DEFAULT_ON_ERROR  = sub { warn "@_" };
 our $DEFAULT_ON_FINISH = sub { return shift };
 
 our $ON_ERROR  = $DEFAULT_ON_ERROR;
@@ -205,13 +205,19 @@ sub get_metrics {
 # ----------------------------------------------------------
 
 sub start {
-    $ON_ERROR->( "STARTING WORK", @_ );
-    my $class = shift;
-    my $name  = shift;
+    # Why register an error every time we start a unit of work?
+    # $ON_ERROR->( "STARTING WORK", @_ );
+    my $class   = shift;
+    my $name    = shift;
+    my $pvid_in = shift;
 
-    my $pvid = @_            ? shift
-             : $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id
-             : Log::ProvenanceId::new_root_id;
+    # Fill in a provenance id if a good one wasn't provided.
+    # Checked via validity test instead of argument count to make it simpler
+    # to accept provenance from optional request headers or whatnot.
+    my $pvid = $pvid_in;
+    if( !Log::ProvenanceId::is_valid_prov_id($pvid) ) {
+        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::ProvenanceId::new_root_id;
+    }
 
     my $package = caller;
     $package = caller(2)
@@ -237,6 +243,10 @@ sub start {
     );
 
     $CURRENT_UNIT->_add_child($self) if $CURRENT_UNIT;
+
+    if( defined($pvid_in) && $pvid_in ne $pvid ) {
+        $ON_ERROR->( 'Attempt to use invalid provenance id', $pvid_in, $self );
+    }
 
     return $self;
 }
