@@ -58,7 +58,7 @@ sub message {
     my $self = shift;
 
     my $message = [
-        { ouw => {
+        { uow => {
                 start    => $self->{start_time},
                 end      => $self->{end_time},
                 duration => $self->{duration} * 1000,

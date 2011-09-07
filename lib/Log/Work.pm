@@ -11,7 +11,7 @@ use Scalar::Util qw(weaken blessed reftype );
 
 use Exporter qw( import );
 our @EXPORT_OK = qw(
-        WORK REMOTE
+        WORK
 
         RESULT_NORMAL
         RESULT_INVALID
@@ -27,7 +27,6 @@ our @EXPORT_OK = qw(
 );
 our @EXPORT = qw(
         WORK
-        REMOTE
         RESULT_NORMAL
         RESULT_INVALID
         RESULT_EXCEPTION
@@ -36,7 +35,6 @@ our @EXPORT = qw(
 
 our %EXPORT_TAGS = (
         simple    => [qw( WORK
-                          REMOTE
                           RESULT_NORMAL
                           RESULT_INVALID
                           RESULT_EXCEPTION
@@ -207,16 +205,17 @@ sub get_metrics {
 sub start {
     # Why register an error every time we start a unit of work?
     # $ON_ERROR->( "STARTING WORK", @_ );
-    my $class   = shift;
-    my $name    = shift;
-    my $pvid_in = shift;
+    my $class    = shift;
+    my $name     = shift;
+    my $pvid_in  = shift;
+    my $alt_base = shift;
 
     # Fill in a provenance id if a good one wasn't provided.
     # Checked via validity test instead of argument count to make it simpler
     # to accept provenance from optional request headers or whatnot.
     my $pvid = $pvid_in;
     if( !Log::ProvenanceId::is_valid_prov_id($pvid) ) {
-        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::ProvenanceId::new_root_id;
+        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::ProvenanceId::new_root_id($alt_base);
     }
 
     my $package = caller;
@@ -244,6 +243,7 @@ sub start {
 
     $CURRENT_UNIT->_add_child($self) if $CURRENT_UNIT;
 
+    # Log this down here so that it could show up in the new unit of work
     if( defined($pvid_in) && $pvid_in ne $pvid ) {
         $ON_ERROR->( 'Attempt to use invalid provenance id', $pvid_in, $self );
     }
@@ -310,7 +310,7 @@ sub current_unit { $CURRENT_UNIT }
 #   High level interface methods
 # ----------------------------------------------------------
 
-sub WORK (&$;$) {
+sub WORK (&$;$$) {
     my $code = shift;
     my $u = __PACKAGE__->start(@_);
 
@@ -327,33 +327,6 @@ sub WORK (&$;$) {
 
     return $u->finish;
 }
-
-sub REMOTE (&$;$) {
-    my $code = shift;
-    my $name = shift;
-    my $pvid = @_            ? shift 
-             : $CURRENT_UNIT ? $CURRENT_UNIT->new_remote_id
-             : Log::ProvenanceId::new_root_id;
-
-    my $u = __PACKAGE__->start($name, $pvid, @_);
-
-    local $@;
-    eval {
-       $u->step( $code );
-    }
-    or do {
-        my $e = $@;
-        $u->RESULT_EXCEPTION
-            unless $u->has_result;
-        $u->record_value( exception => $e );
-    };
-
-    return $u->finish;
-}
-
-
-
-
 
 # ----------------------------------------------------------
 #  Task methods
