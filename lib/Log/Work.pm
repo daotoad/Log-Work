@@ -56,7 +56,6 @@ our %EXPORT_TAGS = (
                      )],
         standard  => [qw(
                           WORK
-                          REMOTE
                           RESULT_NORMAL
                           RESULT_INVALID
                           RESULT_EXCEPTION
@@ -133,6 +132,14 @@ sub on_finish {
     shift; # Remove invocant
     _set_handler( \$ON_FINISH, $DEFAULT_ON_FINISH, @_ );
     return;
+}
+
+sub has_default_on_finish {
+    return $ON_FINISH eq $DEFAULT_ON_FINISH;
+}
+
+sub has_default_on_error {
+    return $ON_ERROR eq $DEFAULT_ON_ERROR;
 }
 
 
@@ -293,8 +300,10 @@ sub finish {
     }
 
     if( $self->{finished} ) {
-        $ON_ERROR->( 'Attempt to log previously finished Work', $self );
-        $self->RESULT_INVALID
+        my $msg = 'Attempt to finish previously finished Work';
+        $ON_ERROR->( $msg, $self );
+        $self->RESULT_INVALID;
+        $self->record_value( reason_invalid => $msg );
     }
 
     my @children = $self->_get_children;
@@ -303,8 +312,10 @@ sub finish {
     $self->{end_time} = time;
     $self->{duration} = $self->{end_time} - $self->{start_time};
 
-    $self->RESULT_INVALID
-        unless $self->has_result;
+    unless ( $self->has_result ) {
+        $self->record_value( reason_invalid => 'No result specified' );
+        $self->RESULT_INVALID;
+    }
 
     $self->{finished} = 1;
 

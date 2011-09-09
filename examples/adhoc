@@ -1,0 +1,25 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+
+use lib '../lib';
+use lib 'lib';
+
+use Log::Lager::Work ':standard';
+use Log::ProvenanceId 'Wub.buW';
+
+WARN "It's a warning";
+WARN WORK {
+    WARN 'Ad hockery dickory doc';
+        package Foo;
+        use Log::Lager;
+        use Log::Work ':standard';
+    WARN { foo => 'bar' };
+    WARN WORK {
+        WARN { 1234 => 1234, 234 =>255 };
+        WARN 'Poop pooop', [qw/ asdf asdf  fsdfggh swtyh /];
+
+        RESULT_NORMAL;
+    } 'Cheeseburger';
+} 'Monkey monkey';
+

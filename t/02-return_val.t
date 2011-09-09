@@ -4,10 +4,10 @@ BEGIN {
     use_ok( 'Log::ProvenanceId' );
     use_ok( 'Log::Work', qw(:simple));
     use_ok( 'Log::Lager' );
-    use_ok( 'Log::Lager::Work' );
+    use_ok( 'Log::Lager::Message::Work' );
 }
 
-Log::Work->on_finish(sub { Log::Lager::Work->new(@_) });
+Log::Work->on_finish(sub { Log::Lager::Message::Work->new(@_) });
 Log::ProvenanceId->import("Test.t02");
 
 my $foo = INFO WORK { return "Blah" } "Working";
