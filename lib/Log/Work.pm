@@ -203,7 +203,6 @@ sub get_metrics {
 # ----------------------------------------------------------
 
 sub start {
-    $ON_ERROR->( "STARTING WORK", @_ );
     my $class = shift;
     my $name  = shift;
 
@@ -303,6 +302,7 @@ sub WORK (&$;$) {
     local $@;
     eval {
        $u->step( $code );
+       1;
     }
     or do {
         my $e = $@;

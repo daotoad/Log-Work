@@ -77,5 +77,8 @@ sub message {
     return $message;
 }
 
+=head1 NAME
+
+Log::Lager::Work
 
 1;
