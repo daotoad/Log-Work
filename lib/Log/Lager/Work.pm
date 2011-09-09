@@ -8,6 +8,11 @@ use Log::Lager::Message;
 
 our @ISA = 'Log::Lager::Message';
 
+sub register_standard_handlers {
+    Log::Work->on_finish( sub { Log::Lager::Work->new(@_) } );
+    Log::Work->on_error(  sub { Log::Lager::ERROR(@_)     } );
+}
+
 sub _init {
     my $self = shift;
     my $work = shift;

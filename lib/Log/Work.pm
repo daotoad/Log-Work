@@ -5,6 +5,7 @@ use strict;
 use warnings;
 
 use Log::ProvenanceId;
+use Log::Work::Util qw< _set_handler first_external_package >;
 
 use Time::HiRes qw( time );
 use Scalar::Util qw(weaken blessed reftype );
@@ -21,10 +22,14 @@ our @EXPORT_OK = qw(
         record_value
         add_metric
         set_accumulator
+        set_result
+        has_result
 
         new_child_id
         new_remote_id
+        current_unit
 );
+
 our @EXPORT = qw(
         WORK
         REMOTE
@@ -43,14 +48,29 @@ our %EXPORT_TAGS = (
                           RESULT_FAILURE
                      )],
         new_ids   => [qw( new_child_id
-                          new_remote_id 
+                          new_remote_id
                      )],
         metadata  => [qw( add_metric
-                          record_value 
+                          record_value
                           set_accumulator
                           set_result
+                          has_result
                      )],
-        standard  => [qw( :simple :metadata :new_ids )],
+        standard  => [qw(
+                          WORK
+                          REMOTE
+                          RESULT_NORMAL
+                          RESULT_INVALID
+                          RESULT_EXCEPTION
+                          RESULT_FAILURE
+                          new_child_id
+                          new_remote_id
+                          add_metric
+                          record_value
+                          set_accumulator
+                          set_result
+                          has_result
+            )],
 );
 
 # Keep track of the current unit of work.
@@ -104,28 +124,6 @@ BEGIN {
     }
 }
 
-sub _set_handler {
-    my $target  = shift;
-    my $default = shift;
-
-    if( @_ == 1 ) {
-        my $coderef = shift;
-        return unless defined $coderef;
-
-        $$target = $coderef eq 'DEFAULT'      ?  $default
-                 : reftype $coderef eq 'CODE' ? $coderef
-                 : $$target;
-    }
-    elsif( @_ == 2 ) {
-        my ( $class, $method ) = @_;
-        my $resolved = $class->can($method);
-
-        return unless $resolved;
-        $$target = sub{ $class->$method(@_) };
-    }
-
-    return;
-}
 
 sub on_error {
     shift; # Remove invocant
@@ -213,9 +211,7 @@ sub start {
              : $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id
              : Log::ProvenanceId::new_root_id;
 
-    my $package = caller;
-    $package = caller(2)
-        if $package eq $class or $package eq __PACKAGE__;
+    my $package = first_external_package();
 
     my $self = $class->new(
         parent      => $CURRENT_UNIT,
@@ -447,33 +443,5 @@ sub has_result {
 
     return defined $self->{result};
 }
-
-sub _header {
-    my $self = shift;
-
-    my $timestamp = gmtime();
-    my $type      = 'UOW';
-    my $log_level = '%LOG_LEVEL%';
-    my $host_name = '';
-    my $program   = $0;
-    my $pid       = $$;
-    my $tid       = 0;
-    my $pvid      = $self->{id};
-    my $namespace = $self->{namespace};
-    my $name      = $self->{name};
-
-    return [
-        $timestamp,
-        $type,
-        $log_level,
-        $host_name,
-        $program,
-        $pid,
-        $tid,
-        $pvid,
-        $namespace,
-    ];
-}
-
 
 1;

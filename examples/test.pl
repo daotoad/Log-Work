@@ -9,6 +9,7 @@ use Log::Lager::Work;
 
 use Log::ProvenanceId 'FU.B234';
 
+Log::Lager::Work->register_standard_handlers();
 Log::Work->on_finish( 'Log::Lager::Work', 'new' );
 Log::Work->on_error( sub { ERROR @_ } );
 
