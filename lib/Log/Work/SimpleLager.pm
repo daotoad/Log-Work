@@ -1,4 +1,4 @@
-package Log::Lager::Work;
+package Log::Work::SimpleLager;
 use strict;
 use warnings;
 
@@ -59,11 +59,11 @@ __END__
 
 =head1 NAME
 
-Log::Lager::Work - Make it easier to use Log::Work with Log::Lager
+Log::Work::SimpleLager - Make it easier to use Log::Work with Log::Lager
 
 =head1 SYNOPSIS
 
-    use Log::Lager::Work ':standard';
+    use Log::Work::SimpleLager ':standard';
 
     # only needed in an executable not in a library:
     use ProvenanceId 'Foo.Bar';
@@ -79,7 +79,7 @@ Log::Lager::Work - Make it easier to use Log::Work with Log::Lager
 
 =head1 DESCRIPTION
 
-Log::Lager::Work is exists to simplify the use of Log::Lager and Log::Work together.  It is entirely possible to use these two systems together without using Log::Lager::Work.
+Log::Work::SimpleLager is exists to simplify the use of Log::Lager and Log::Work together.  It is entirely possible to use these two systems together without using Log::Work::SimpleLager.
 
 When used, Log::Lager does a few simple things:
 
@@ -91,7 +91,7 @@ Load Log::Lager and export its subroutines.
 
 =item *
 
-If this is the first time Log::Lager::Work is loaded, it will set Log::Lager's default message object to Log::Lager::Message::AdHoc
+If this is the first time Log::Work::SimpleLager is loaded, it will set Log::Lager's default message object to Log::Lager::Message::AdHoc
 
 =item *
 
@@ -101,11 +101,11 @@ Any arguments to the use line are passed to Log::Work's use line.
 
 =item *
 
-Registers an C<on_finish> handler with Log::Work that generates Log::Lager::Message::Work objects.
+If this is the first time Log::Work::SimpleLager is loaded AND the default C<on_finish> is currently selected, it registers an C<on_finish> handler with Log::Work that generates Log::Lager::Message::Work objects.
 
 =item *
 
-Registers an C<on_error> handler with Log::Work that emits an ad hoc ERROR level message using Log::Lager.
+If this is the first time Log::Work::SimpleLager is loaded AND the default C<on_error> is currently selected, it registers an C<on_error> handler with Log::Work that emits an ad hoc ERROR level message using Log::Lager.
 
 =back
 

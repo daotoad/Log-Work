@@ -1,14 +1,16 @@
 use strict;
 use warnings;
 
-use Log::Lager qw( FEWIDTG  stack FEWITDG pretty FEWITDG );
-use Log::Work qw(add_metric RESULT_NORMAL RESULT_FAILURE);
-use Log::Lager::Work;
+use Log::Lager qw( FEWIDTG  stack FEWITDG pretty FEWITDG  );
 
-Log::Work->on_finish( 'Log::Lager::Work', 'new' );
+use Log::Lager qw( message Log::Lager::Message::AdHoc );
+use Log::Work qw(add_metric RESULT_NORMAL RESULT_FAILURE);
+
+
+Log::Work->on_finish( 'Log::Lager::Message::Work', 'new' );
 Log::Work->on_error( sub { ERROR @_ } );
 
-use Log::ProvenanceId 'FU.B234';
+use Log::Work::ProvenanceId 'FU.B234';
 
 use constant UNITS => 5;
 use constant CHANCE => 100;

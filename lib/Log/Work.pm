@@ -4,7 +4,7 @@ package Log::Work;
 use strict;
 use warnings;
 
-use Log::ProvenanceId;
+use Log::Work::ProvenanceId;
 use Log::Work::Util qw< _set_handler first_external_package >;
 
 use Time::HiRes qw( time );
@@ -217,8 +217,8 @@ sub start {
     # Checked via validity test instead of argument count to make it simpler
     # to accept provenance from optional request headers or whatnot.
     my $pvid = $pvid_in;
-    if( !Log::ProvenanceId::is_valid_prov_id($pvid) ) {
-        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::ProvenanceId::new_root_id($alt_base);
+    if( !Log::Work::ProvenanceId::is_valid_prov_id($pvid) ) {
+        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::Work::ProvenanceId::new_root_id($alt_base);
     }
 
     my $package = first_external_package();
@@ -357,7 +357,7 @@ sub new_child_id {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         $ON_ERROR->( 'Invalid unit of work specified.' );
-        return Log::ProvenanceId::new_root_id();
+        return Log::Work::ProvenanceId::new_root_id();
     }
 
     $self->{counter}++;
@@ -373,7 +373,7 @@ sub new_remote_id {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         $ON_ERROR->( 'Invalid unit of work specified.' );
-        return Log::ProvenanceId::new_root_id();
+        return Log::Work::ProvenanceId::new_root_id();
     }
 
     $self->{counter}++;

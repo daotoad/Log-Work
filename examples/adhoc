@@ -5,8 +5,8 @@ use warnings;
 use lib '../lib';
 use lib 'lib';
 
-use Log::Lager::Work ':standard';
-use Log::ProvenanceId 'Wub.buW';
+use Log::Work::SimpleLager ':standard';
+use Log::Work::ProvenanceId 'Wub.buW';
 
 WARN "It's a warning";
 WARN WORK {

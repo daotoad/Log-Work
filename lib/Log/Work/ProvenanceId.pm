@@ -1,4 +1,4 @@
-package Log::ProvenanceId;
+package Log::Work::ProvenanceId;
 
 use strict;
 use warnings;
@@ -6,6 +6,8 @@ use warnings;
 use Carp qw(croak);
 use Sys::Hostname;
 use Socket;
+
+our @CARP_NOT = qw( Log::Work Log::Lager Log::Lager::Message );
 
 my $IDBASE;
 my $IP;
@@ -60,7 +62,7 @@ sub new_root_id {
     my $base = shift;
     $base = $IDBASE unless defined $base;
 
-    croak "No base ID specified for this application.\n"
+    croak "No base ID specified for this application"
         unless defined $base;
 
     $IP = _get_ip()
