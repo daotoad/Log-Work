@@ -49,7 +49,10 @@ sub import {
     return unless defined $newbase;
 
     croak "The base value for the Provenance ID has already been set"
-        if defined $IDBASE;
+        if (
+            defined $IDBASE
+        and $IDBASE ne $newbase
+        );
 
     croak "The base value '$newbase' for the Provenance ID is invalid"
         unless is_valid_base_prov_id( $newbase );
@@ -81,7 +84,8 @@ sub new_root_id {
 sub _get_ip {
     my $host = hostname;
     my $ip = inet_aton hostname;
-    $ip = inet_ntoa $ip if defined $ip;
+    $ip = inet_ntoa $ip
+        if defined $ip;
 
     $ip = join '', map sprintf("%02X",$_), split /[.]/, $ip;
 
