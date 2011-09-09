@@ -1,4 +1,4 @@
-package Log::Lager::Work;
+package Log::Lager::Message::Work;
 use strict;
 use warnings;
 
