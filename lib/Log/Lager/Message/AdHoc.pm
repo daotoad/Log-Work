@@ -16,7 +16,7 @@ sub _init {
     $self->{type} = "ADHOC";
     $self->{name} = "AdHoc";
     $self->{namespace} = first_external_package(2, qr/^Log::(?:Work|Event|Lager)/x );
-    $self->SUPER::_init( context => 1, message => [], want_bits => 1, @_ );
+    $self->SUPER::_init( context => 1, want_bits => 1, @_ );
 }
 
 
@@ -37,6 +37,14 @@ sub _header {
     );
 
     return \@header;
+}
+
+sub message {
+    my $self = shift;
+
+my $message = [
+        { adhoc => $self->{message} || []  },
+    ]
 }
 
 1;
