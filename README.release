@@ -1,6 +1,6 @@
 This project uses Dist::Zilla to manage releases.
 
-For best results install the Dist::Zilla and Dist::Zilla::App::Cover Perl modules using cpan-minus.  There are many dependencies and standard CPAN.pm installs are tedious.
+For best results install the Dist::Zilla and Dist::Zilla::App::Command::cover Perl modules using cpan-minus.  There are many dependencies and standard CPAN.pm installs are tedious.
 
 Once you have all the dependencies...
 

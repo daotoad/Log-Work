@@ -57,8 +57,11 @@ sub import {
 }
 
 sub new_root_id {
+    my $base = shift;
+    $base = $IDBASE unless defined $base;
+
     croak "No base ID specified for this application.\n"
-        unless defined $IDBASE;
+        unless defined $base;
 
     $IP = _get_ip()
         unless defined $IP;
@@ -68,7 +71,7 @@ sub new_root_id {
         unless defined $RAND;
 
     return sprintf "%s-%s-%0d-%10d-%04d-%0d:",
-        $IDBASE, $IP, $$, $TIME, $RAND, $COUNTER++,
+        $base, $IP, $$, $TIME, $RAND, $COUNTER++,
 
 }
 
