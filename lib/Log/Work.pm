@@ -134,6 +134,14 @@ sub on_finish {
     return;
 }
 
+sub has_default_on_finish {
+    return $ON_FINISH eq $DEFAULT_ON_FINISH;
+}
+
+sub has_default_on_error {
+    return $ON_ERROR eq $DEFAULT_ON_ERROR;
+}
+
 
 # Special attribute accessors
 sub _children {

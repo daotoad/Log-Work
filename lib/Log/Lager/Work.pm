@@ -7,6 +7,8 @@ require Log::Work;
 require Log::Lager::Message::Work;
 require Log::Lager::Message::AdHoc;
 
+our $ALREADY_LOADED = 0;
+
 sub import {
     my $class = shift;
     my $package = caller();
@@ -14,27 +16,40 @@ sub import {
     # Pass arguments to Log::Work
     my $log_work_args  = join ', ', map "'$_'", @_;
 
+    my $already_loaded = $ALREADY_LOADED++;
+
     # Only set the Log::Lager object the first time we are loaded.
-    my $log_lager_args = exists $INC{'Log/Lager/Work.pm'} 
+    my $log_lager_args = $already_loaded
                        ? ''
                        : "'message Log::Lager::Message::AdHoc'";
 
+    my $register_handlers = $already_loaded
+                          ? ''
+                          : <<"END_CODE";
+
+Log::Work->on_finish( sub { Log::Lager::Message::Work->new( \@_ ) } )
+    if Log::Work->has_default_on_finish;
+
+Log::Work->on_error( sub { Log::Lager::ERROR(\@_) } )
+    if Log::Work->has_default_on_error;
+
+END_CODE
 
     my $code = <<"END_CODE";
 package $package;
 
-use Log::Work $log_work_args;
-
-Log::Work->on_finish( sub { Log::Lager::Message::Work->new( \@_ ) } );
-Log::Work->on_error( sub { Log::Lager::ERROR(\@_) } );
-
 use Log::Lager $log_lager_args;
+
+use Log::Work $log_work_args;
+$register_handlers
 
 1;
 
 END_CODE
 
-     return 1;
+    eval $code or die $@;
+
+    return 1;
 
 }
 
