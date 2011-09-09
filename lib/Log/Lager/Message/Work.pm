@@ -1,4 +1,7 @@
 package Log::Lager::Message::Work;
+BEGIN {
+  $Log::Lager::Message::Work::VERSION = '0.02';
+}
 use strict;
 use warnings;
 
@@ -81,5 +84,9 @@ sub message {
 =head1 NAME
 
 Log::Lager::Work
+
+=head1 VERSION
+
+version 0.02
 
 1;

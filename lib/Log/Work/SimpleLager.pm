@@ -1,4 +1,7 @@
 package Log::Work::SimpleLager;
+BEGIN {
+  $Log::Work::SimpleLager::VERSION = '0.02';
+}
 use strict;
 use warnings;
 
@@ -61,6 +64,10 @@ __END__
 
 Log::Work::SimpleLager - Make it easier to use Log::Work with Log::Lager
 
+=head1 VERSION
+
+version 0.02
+
 =head1 SYNOPSIS
 
     use Log::Work::SimpleLager ':standard';
@@ -117,4 +124,3 @@ Written by Mark Swayne for Marchex.
 Contributions from Alex Popiel and Tye McQueen.
 
 Thank you to Marchex for allowing me to share this work.
-

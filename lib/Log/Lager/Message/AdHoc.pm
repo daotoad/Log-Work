@@ -1,4 +1,7 @@
 package Log::Lager::Message::AdHoc;
+BEGIN {
+  $Log::Lager::Message::AdHoc::VERSION = '0.02';
+}
 use strict;
 use warnings;
 
