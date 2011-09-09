@@ -88,7 +88,7 @@ sub _get_ip {
 sub is_valid_prov_id {
     my $pvid = shift;
 
-    return $pvid =~ /$RX_STRICT_VALID_ID/;
+    return defined($pvid) && $pvid =~ /$RX_STRICT_VALID_ID/;
 }
 
 sub is_valid_base_prov_id {

@@ -92,7 +92,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             finished    duration
             result      result_code
             metrics     accumulator
-            values
+            values      return_values
         );
     my %ATTRIBUTES = map { $_ => undef } @ATTRIBUTES;
 
@@ -253,7 +253,20 @@ sub step {
 
     local $CURRENT_UNIT = $self;
 
-    return $code->();
+    if (!defined wantarray) {
+        $code->();
+        return;
+    }
+    if (wantarray) {
+        my @return_values = $code->();
+        $self->{return_values} = \@return_values;
+        return @return_values;
+    }
+    else {
+        my $return_value = $code->();
+        $self->{return_values} = [ $return_value ];
+        return $return_value;
+    }
 }
 
 sub finish {
@@ -266,7 +279,7 @@ sub finish {
             children    => {}, 
             id          => 'INVALID',
             name        => 'INVALID',
-            package     =>  'INVALID',
+            package     => 'INVALID',
 
             start_time  => time,
             end_time    => undef,
@@ -310,7 +323,8 @@ sub WORK (&$;$$) {
 
     local $@;
     eval {
-       $u->step( $code );
+       # Forcing array context
+       my @foo = $u->step( $code );
        1;
     }
     or do {

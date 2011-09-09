@@ -34,6 +34,7 @@ sub _init {
             namespace
             name
             result
+            return_values
         );
 
     $self->SUPER::_init( context => 1, message => [], want_bits => 1, @_ );
