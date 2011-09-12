@@ -89,6 +89,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             result      result_code
             metrics     values
             return_values
+            return_exception
         );
     my %ATTRIBUTES = map { $_ => undef } @ATTRIBUTES;
 
@@ -338,6 +339,7 @@ sub WORK (&$;$$) {
         $u->RESULT_EXCEPTION
             unless $u->has_result;
         $u->record_value( exception => $e );
+        $u->{return_exception} = $e;
     };
 
     return $u->finish;

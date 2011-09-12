@@ -34,6 +34,7 @@ sub _init {
             name
             result
             return_values
+            return_exception
         );
 
     $self->SUPER::_init( context => 1, message => [], want_bits => 1, @_ );
