@@ -21,7 +21,6 @@ our @EXPORT_OK = qw(
 
         record_value
         add_metric
-        set_accumulator
         set_result
         has_result
 
@@ -50,7 +49,6 @@ our %EXPORT_TAGS = (
                      )],
         metadata  => [qw( add_metric
                           record_value
-                          set_accumulator
                           set_result
                           has_result
                      )],
@@ -64,7 +62,6 @@ our %EXPORT_TAGS = (
                           new_remote_id
                           add_metric
                           record_value
-                          set_accumulator
                           set_result
                           has_result
             )],
@@ -90,8 +87,8 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             start_time  end_time
             finished    duration
             result      result_code
-            metrics     accumulator
-            values      return_values
+            metrics     values
+            return_values
         );
     my %ATTRIBUTES = map { $_ => undef } @ATTRIBUTES;
 
@@ -238,7 +235,6 @@ sub start {
 
         metrics     => {},
         values      => {},
-        accumulator => {},
         counter     => 0,   # First child is 1, next is 2, etc, regardless of internal/external.
     );
 
@@ -295,7 +291,6 @@ sub finish {
 
             metrics     => {},
             values      => {},
-            accumulator => {},
         );
     }
 
