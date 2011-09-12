@@ -1,6 +1,6 @@
 package Log::Work::SimpleLager;
 BEGIN {
-  $Log::Work::SimpleLager::VERSION = '0.02';
+  $Log::Work::SimpleLager::VERSION = '0.02.01';
 }
 use strict;
 use warnings;
@@ -66,14 +66,14 @@ Log::Work::SimpleLager - Make it easier to use Log::Work with Log::Lager
 
 =head1 VERSION
 
-version 0.02
+version 0.02.01
 
 =head1 SYNOPSIS
 
     use Log::Work::SimpleLager ':standard';
 
     # only needed in an executable not in a library:
-    use ProvenanceId 'Foo.Bar';
+    use Log::Work::ProvenanceId 'Foo.Bar';
 
     INFO "Emit an ad hoc log message";
 

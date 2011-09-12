@@ -1,6 +1,6 @@
 package Log::Work;
 BEGIN {
-  $Log::Work::VERSION = '0.02';
+  $Log::Work::VERSION = '0.02.01';
 }
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
@@ -24,7 +24,6 @@ our @EXPORT_OK = qw(
 
         record_value
         add_metric
-        set_accumulator
         set_result
         has_result
 
@@ -53,7 +52,6 @@ our %EXPORT_TAGS = (
                      )],
         metadata  => [qw( add_metric
                           record_value
-                          set_accumulator
                           set_result
                           has_result
                      )],
@@ -67,7 +65,6 @@ our %EXPORT_TAGS = (
                           new_remote_id
                           add_metric
                           record_value
-                          set_accumulator
                           set_result
                           has_result
             )],
@@ -93,8 +90,9 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             start_time  end_time
             finished    duration
             result      result_code
-            metrics     accumulator
-            values      return_values
+            metrics     values
+            return_values
+            return_exception
         );
     my %ATTRIBUTES = map { $_ => undef } @ATTRIBUTES;
 
@@ -241,7 +239,6 @@ sub start {
 
         metrics     => {},
         values      => {},
-        accumulator => {},
         counter     => 0,   # First child is 1, next is 2, etc, regardless of internal/external.
     );
 
@@ -298,7 +295,6 @@ sub finish {
 
             metrics     => {},
             values      => {},
-            accumulator => {},
         );
     }
 
@@ -346,6 +342,7 @@ sub WORK (&$;$$) {
         $u->RESULT_EXCEPTION
             unless $u->has_result;
         $u->record_value( exception => $e );
+        $u->{return_exception} = $e;
     };
 
     return $u->finish;
@@ -359,47 +356,59 @@ sub new_child_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Invalid unit of work specified.' );
+        $ON_ERROR->( 'Error generating child ID: Invalid parent unit of work specified.' );
         return Log::Work::ProvenanceId::new_root_id();
     }
 
-    $self->{counter}++;
-
-    my $id = sprintf "%s,%s",
-        $self->{id}, $self->{counter};
-
-    return $id;
+    return $self->_new_id( '' );
 }
 
 sub new_remote_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Invalid unit of work specified.' );
-        return Log::Work::ProvenanceId::new_root_id();
+        my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
+        $ON_ERROR->( $msg );
+        die $msg;
     }
+
+    return $self->_new_id( 'r' );
+}
+
+sub _new_id {
+    my $self       = shift;
+    my $remotifier = shift; # '' or 'r'
 
     $self->{counter}++;
 
-    my $id = sprintf "%s,%sr",
-        $self->{id}, $self->{counter};
+    my $separator = $self->{id} =~ /:$/ ? '' : ',';
+
+    my $id = sprintf "%s%s%s%s", $self->{id}, $separator, $self->{counter}, $remotifier;
 
     return $id;
 }
 
 
 sub record_value {
-    my $self   = blessed $_[0] ? shift : $CURRENT_UNIT;
-    my $name  = shift;
-    my $value = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
+    my @kvp  = @_;
 
-    my $values = $self->_values;
+    # Check for even number of arguments.
+    $ON_ERROR->( 'record_values() requires a list of name/value pairs for its arguments' )
+        unless @kvp % 2 == 0;
 
-    if( exists $values->{$name} ) {
-        $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
+    while( @kvp ) {
+        my $name  = shift @kvp;
+        my $value = shift @kvp;
+
+        my $values = $self->_values;
+
+        if( exists $values->{$name} ) {
+            $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
+        }
+
+        $values->{$name} = $value;
     }
-
-    $values->{$name} = $value;
 
     return $self;
 }
@@ -455,3 +464,23 @@ sub has_result {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Log::Work
+
+=head1 VERSION
+
+version 0.02.01
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=head1 EXPORTS
+
+=head1 SEE ALSO
+
+=head1 CREDITS

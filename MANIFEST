@@ -15,5 +15,6 @@ lib/Log/Work/SimpleLager.pm
 lib/Log/Work/Util.pm
 t/01-load.t
 t/02-return_val.t
+t/05-id_generation.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t

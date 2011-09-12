@@ -1,6 +1,6 @@
 package Log::Work::Util;
 BEGIN {
-  $Log::Work::Util::VERSION = '0.02';
+  $Log::Work::Util::VERSION = '0.02.01';
 }
 
 use strict;

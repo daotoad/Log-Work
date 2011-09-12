@@ -1,6 +1,6 @@
 package Log::Work::ProvenanceId;
 BEGIN {
-  $Log::Work::ProvenanceId::VERSION = '0.02';
+  $Log::Work::ProvenanceId::VERSION = '0.02.01';
 }
 
 use strict;
@@ -18,9 +18,9 @@ my $TIME;
 my $RAND;
 my $COUNTER = 0;
 
-my $RX_STRICT_PRODUCT_IDENTIFIER = qr/[A-Za-z][\w-]*/;
+my $RX_STRICT_PRODUCT_IDENTIFIER = qr/[A-Za-z]\w*/;
 my $RX_STRICT_SERVICE_IDENTIFIER = $RX_STRICT_PRODUCT_IDENTIFIER;
-my $RX_STRICT_UNIQUEIFIER        = qr/[^:.,\s]+/;
+my $RX_STRICT_UNIQUEIFIER        = qr/[^:,\s]+/;
 
 my $RX_STRICT_VALID_BASE = qr{
 
@@ -30,19 +30,22 @@ my $RX_STRICT_VALID_BASE = qr{
 
 }x;
 
-my $RX_STRICT_VALID_ID = qr{
-
+my $RX_STRICT_VALID_ROOT = qr{
     $RX_STRICT_VALID_BASE
     \.
     $RX_STRICT_UNIQUEIFIER
-
     :                 # ID terminator
+}x;
+
+my $RX_STRICT_VALID_ID = qr{
+
+    $RX_STRICT_VALID_ROOT
 
     (                 # Virtual call trace
-        \d+r?         #  Initial element
-        (,\d+r?)*     #  Additional
+        \d+r?         #  Initial request identifier
+        (,\d+r?)*     #  Additional request identifiers
     )?
-};
+}x;
 
 
 sub import {
@@ -78,7 +81,7 @@ sub new_root_id {
     $RAND = rand( 10000)
         unless defined $RAND;
 
-    return sprintf "%s-%s-%0d-%10d-%04d-%0d:",
+    return sprintf "%s.%s.%0d.%10d.%04d.%0d:",
         $base, $IP, $$, $TIME, $RAND, $COUNTER++,
 
 }
@@ -98,13 +101,112 @@ sub is_valid_prov_id {
     my $pvid = shift;
     return unless defined $pvid;
 
-    return defined($pvid) && $pvid =~ /$RX_STRICT_VALID_ID/;
+    return $pvid =~ /^$RX_STRICT_VALID_ID$/;
 }
 
 sub is_valid_base_prov_id {
     my $base = shift;
+    return unless defined $base;
 
-    return $base =~ /$RX_STRICT_VALID_BASE/;
+    return $base =~ /^$RX_STRICT_VALID_BASE$/;
 }
 
+sub is_valid_root_prov_id {
+    my $pvid = shift;
+    return unless defined $pvid;
+
+    return $pvid =~ /^$RX_STRICT_VALID_ROOT$/;
+}
+
+
+sub is_local {
+    return ! is_remote(@_);
+}
+
+sub is_remote {
+    my $id = shift;
+    return unless defined $id;
+
+    my $di = reverse $id;
+
+    return $di =~ /^r\d+[^:]*:/;
+}
+
+sub get_parent_id {
+    my $id = shift;
+
+    my ($root,$trace) = $id =~ /^([^:]*:)(.*)/;
+
+    return unless length $trace;
+
+    my @trace = ( split /,/, $trace);
+
+    pop @trace;
+
+    return  $root . join ',', @trace;
+
+}
+
+
 1;
+
+__END__
+
+=head1 NAME
+
+Log::Work::ProvenanceId
+
+=head1 VERSION
+
+version 0.02.01
+
+=head1 SYNOPSIS
+
+
+    # Set a provenance id for a whole script:
+    use Log::Work::ProvenanceId 'Wub.Wub';
+
+    # Load LWPID and mess with provenance ids:
+    use Log::Work::ProvenanceId;
+
+    if( is_valid_base_prov_id( 'Foo.Bar') ) {
+        # Do something
+    }
+
+=head1 DESCRIPTION
+
+
+=head2 Structure of a Provenance ID
+
+PROV_ID           = ROOT_ID REQUEST_ID
+                    /  PROV_ID "," REQUEST_ID
+BASE              = PRODUCT_ID "." SERVICE_ID
+ROOT              = BASE "." UNIQUIFIER ":"
+REQUEST_ID        = LOCAL_REQUEST_ID / REMOTE_REQUEST_ID
+LOCAL_REQUEST_ID  = DIGIT
+REMOTE_REQUEST_ID = \d+r
+
+
+=head2 Custom Import Semantics
+
+=head2 Subroutines
+
+=head3 new_root_id
+
+=head3 is_valid_prov_id
+
+=head3 is_valid_base_prov_id
+
+=head3 is_valid_root_prov_id
+
+=head3 is_local
+
+=head3 is_remote
+
+
+=head1 CREDITS
+
+Written by Mark Swayne for Marchex.
+Contributions from Alex Popiel and Tye McQueen.
+
+Thank you to Marchex for allowing me to share this work.
