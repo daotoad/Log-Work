@@ -78,8 +78,49 @@ sub message {
     return $message;
 }
 
+1;
+
+__END__
+
 =head1 NAME
 
-Log::Lager::Work
+Log::Lager::Message::Work - A Log::Lager::Message object for use with Log::Lager.
 
-1;
+=head1 SYNOPSIS
+
+    use Log::Lager;
+    use Log::Work ':simple';
+    use Log::Lager::Message::Work;
+
+    # Register standard Log::Work Handlers
+    Log::Lager::Message::Work->register_standard_handlers();
+
+    # or register them manually:
+    Log::Work->on_finish( Log::Lager::Message::Work => 'new' );
+    Log::Work->on_error( sub { Log::Lager::ERROR( @_ ) } );
+
+    INFO WORK {
+        # Do some stuff here.
+    } 'Some Job';
+
+=head1 DESCRIPTION
+
+This is a subclass of Log::Lager::Message that is used to record information about a Log::Work object.  The role of this class is to act as a translation layer between the two different systems.
+
+=head1 SEE ALSO
+
+Log::Lager - Provide easy to use, lexically controllable logging in JSON format.
+
+Log::Work - Track program tasks with a structured unique ID.
+
+Log::Lager::Message - Base class for all Log::Lager::Message objects.
+
+Log::Lager::Message::AdHoc - Another LLM subclass for combining Log::Lager ad hoc logging with Log::Work suite.
+
+=head1 CREDITS
+
+Written by Mark Swayne for Marchex.
+Contributions from Alex Popiel and Tye McQueen.
+
+Thank you to Marchex for allowing me to share this work.
+

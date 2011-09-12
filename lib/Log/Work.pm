@@ -452,3 +452,20 @@ sub has_result {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Log::Work
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=head1 EXPORTS
+
+=head1 SEE ALSO
+
+=head1 CREDITS
+

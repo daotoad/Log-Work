@@ -66,7 +66,7 @@ Log::Work::SimpleLager - Make it easier to use Log::Work with Log::Lager
     use Log::Work::SimpleLager ':standard';
 
     # only needed in an executable not in a library:
-    use ProvenanceId 'Foo.Bar';
+    use Log::Work::ProvenanceId 'Foo.Bar';
 
     INFO "Emit an ad hoc log message";
 

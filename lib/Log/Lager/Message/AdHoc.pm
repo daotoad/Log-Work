@@ -39,12 +39,52 @@ sub _header {
     return \@header;
 }
 
-sub message {
-    my $self = shift;
-
+sub message {    my $self = shift;
 my $message = [
         { adhoc => $self->{message} || []  },
     ]
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Log::Lager::Message::AdHoc - A Log::Lager::Message object for use with Log::Lager.
+
+=head1 SYNOPSIS
+
+    use Log::Lager;
+    use Log::Work ':simple';
+    use Log::Lager::Message::AdHoc;
+
+    # Register Log::Lager::Message::AdHoc as the standard message object for Log::Lager
+    use Log::Lager 'message Log::Lager::Message::AdHoc';
+
+    # or register using apply command:
+    Log::Lager->apply_command( 'message Log::Lager::Message::AdHoc' );
+
+    INFO 'Blah blah blah';
+
+=head1 DESCRIPTION
+
+This is a subclass of Log::Lager::Message that is used to record ad hoc logging data in a format this is compatible with Log::Work.  The role of this class is to provide a compatible behaviors between Log::Work and ad hoc messages generated with Log::Lager.
+
+=head1 SEE ALSO
+
+Log::Lager - Provide easy to use, lexically controllable logging in JSON format.
+
+Log::Work - Track program tasks with a structured unique ID.
+
+Log::Lager::Message - Base class for all Log::Lager::Message objects.
+
+Log::Lager::Message::Work - Another LLM subclass for combining Log::Lager with the Log::Work suite.
+
+=head1 CREDITS
+
+Written by Mark Swayne for Marchex.
+Contributions from Alex Popiel and Tye McQueen.
+
+Thank you to Marchex for allowing me to share this work.
+
