@@ -15,9 +15,9 @@ my $TIME;
 my $RAND;
 my $COUNTER = 0;
 
-my $RX_STRICT_PRODUCT_IDENTIFIER = qr/[A-Za-z][\w-]*/;
+my $RX_STRICT_PRODUCT_IDENTIFIER = qr/[A-Za-z]\w*/;
 my $RX_STRICT_SERVICE_IDENTIFIER = $RX_STRICT_PRODUCT_IDENTIFIER;
-my $RX_STRICT_UNIQUEIFIER        = qr/[^:.,\s]+/;
+my $RX_STRICT_UNIQUEIFIER        = qr/[^:,\s]+/;
 
 my $RX_STRICT_VALID_BASE = qr{
 
@@ -27,19 +27,22 @@ my $RX_STRICT_VALID_BASE = qr{
 
 }x;
 
-my $RX_STRICT_VALID_ID = qr{
-
+my $RX_STRICT_VALID_ROOT = qr{
     $RX_STRICT_VALID_BASE
     \.
     $RX_STRICT_UNIQUEIFIER
-
     :                 # ID terminator
+}x;
+
+my $RX_STRICT_VALID_ID = qr{
+
+    $RX_STRICT_VALID_ROOT
 
     (                 # Virtual call trace
-        \d+r?         #  Initial element
-        (,\d+r?)*     #  Additional
+        \d+r?         #  Initial request identifier
+        (,\d+r?)*     #  Additional request identifiers
     )?
-};
+}x;
 
 
 sub import {
@@ -75,7 +78,7 @@ sub new_root_id {
     $RAND = rand( 10000)
         unless defined $RAND;
 
-    return sprintf "%s-%s-%0d-%10d-%04d-%0d:",
+    return sprintf "%s.%s.%0d.%10d.%04d.%0d:",
         $base, $IP, $$, $TIME, $RAND, $COUNTER++,
 
 }

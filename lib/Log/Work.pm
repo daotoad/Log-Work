@@ -356,47 +356,59 @@ sub new_child_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Invalid unit of work specified.' );
+        $ON_ERROR->( 'Error generating child ID: Invalid parent unit of work specified.' );
         return Log::Work::ProvenanceId::new_root_id();
     }
 
-    $self->{counter}++;
-
-    my $id = sprintf "%s,%s",
-        $self->{id}, $self->{counter};
-
-    return $id;
+    return $self->_new_id( '' );
 }
 
 sub new_remote_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Invalid unit of work specified.' );
-        return Log::Work::ProvenanceId::new_root_id();
+        my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
+        $ON_ERROR->( $msg );
+        die $msg;
     }
+
+    return $self->_new_id( 'r' );
+}
+
+sub _new_id {
+    my $self       = shift;
+    my $remotifier = shift; # '' or 'r'
 
     $self->{counter}++;
 
-    my $id = sprintf "%s,%sr",
-        $self->{id}, $self->{counter};
+    my $separator = $self->{id} =~ /:$/ ? '' : ',';
+
+    my $id = sprintf "%s%s%s%s", $self->{id}, $separator, $self->{counter}, $remotifier;
 
     return $id;
 }
 
 
 sub record_value {
-    my $self   = blessed $_[0] ? shift : $CURRENT_UNIT;
-    my $name  = shift;
-    my $value = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
+    my @kvp  = @_;
 
-    my $values = $self->_values;
+    # Check for even number of arguments.
+    $ON_ERROR->( 'record_values() requires a list of name/value pairs for its arguments' )
+        unless @kvp % 2 == 0;
 
-    if( exists $values->{$name} ) {
-        $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
+    while( @kvp ) {
+        my $name  = shift @kvp;
+        my $value = shift @kvp;
+
+        my $values = $self->_values;
+
+        if( exists $values->{$name} ) {
+            $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
+        }
+
+        $values->{$name} = $value;
     }
-
-    $values->{$name} = $value;
 
     return $self;
 }
