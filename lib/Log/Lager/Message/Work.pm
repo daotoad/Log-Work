@@ -29,7 +29,6 @@ sub _init {
             status
             metrics
             values
-            accumulator
             result_code
             namespace
             name
