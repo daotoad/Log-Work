@@ -24,6 +24,7 @@ my %WriteMakefileArgs = (
   "PREREQ_PM" => {
     "Carp" => 0,
     "Exporter" => 0,
+    "Log::Lager" => 0,
     "Log::Lager::Message" => 0,
     "Scalar::Util" => 0,
     "Socket" => 0,
@@ -32,7 +33,7 @@ my %WriteMakefileArgs = (
     "strict" => 0,
     "warnings" => 0
   },
-  "VERSION" => "0.01.01",
+  "VERSION" => "0.02.03",
   "test" => {
     "TESTS" => "t/*.t"
   }

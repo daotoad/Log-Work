@@ -16,6 +16,7 @@ name: Log-Work
 requires:
   Carp: 0
   Exporter: 0
+  Log::Lager: 0
   Log::Lager::Message: 0
   Scalar::Util: 0
   Socket: 0
@@ -23,4 +24,4 @@ requires:
   Time::HiRes: 0
   strict: 0
   warnings: 0
-version: 0.01.01
+version: 0.02.03

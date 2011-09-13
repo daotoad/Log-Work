@@ -1,20 +1,22 @@
 package Log::Work;
 {
-  $Log::Work::VERSION = '0.01.01';
+  $Log::Work::VERSION = '0.02.03';
 }
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
 use strict;
 use warnings;
 
-use Log::ProvenanceId;
+use Log::Work::ProvenanceId;
+use Log::Work::Util qw< _set_handler first_external_package >;
 
 use Time::HiRes qw( time );
 use Scalar::Util qw(weaken blessed reftype );
+use Carp qw( croak );
 
 use Exporter qw( import );
 our @EXPORT_OK = qw(
-        WORK REMOTE
+        WORK
 
         RESULT_NORMAL
         RESULT_INVALID
@@ -23,14 +25,16 @@ our @EXPORT_OK = qw(
 
         record_value
         add_metric
-        set_accumulator
+        set_result
+        has_result
 
         new_child_id
         new_remote_id
+        current_unit
 );
+
 our @EXPORT = qw(
         WORK
-        REMOTE
         RESULT_NORMAL
         RESULT_INVALID
         RESULT_EXCEPTION
@@ -39,21 +43,32 @@ our @EXPORT = qw(
 
 our %EXPORT_TAGS = (
         simple    => [qw( WORK
-                          REMOTE
                           RESULT_NORMAL
                           RESULT_INVALID
                           RESULT_EXCEPTION
                           RESULT_FAILURE
                      )],
         new_ids   => [qw( new_child_id
-                          new_remote_id 
+                          new_remote_id
                      )],
         metadata  => [qw( add_metric
-                          record_value 
-                          set_accumulator
+                          record_value
                           set_result
+                          has_result
                      )],
-        standard  => [qw( :simple :metadata :new_ids )],
+        standard  => [qw(
+                          WORK
+                          RESULT_NORMAL
+                          RESULT_INVALID
+                          RESULT_EXCEPTION
+                          RESULT_FAILURE
+                          new_child_id
+                          new_remote_id
+                          add_metric
+                          record_value
+                          set_result
+                          has_result
+            )],
 );
 
 # Keep track of the current unit of work.
@@ -76,8 +91,9 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             start_time  end_time
             finished    duration
             result      result_code
-            metrics     accumulator
-            values
+            metrics     values
+            return_values
+            return_exception
         );
     my %ATTRIBUTES = map { $_ => undef } @ATTRIBUTES;
 
@@ -92,13 +108,32 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
     }
 };
 
-BEGIN {
 
-    for my $result_type (qw( INVALID EXCEPTION FAILURE NORMAL )) {
+# Define RESULT_FAILURE, RESULT_EXCEPTION, RESULT_INVALID, and RESULT_NORMAL
+BEGIN {
+    my %result = (
+        INVALID    => 'reason_invalid',
+        EXCEPTION  => 'exception',
+        FAILURE    => 'reason_failure',
+        NORMAL     => 'reason_normal',
+    );
+
+    for my $result_type ( keys %result ) {
 
         my $sub = sub {
-            my $self = @_ ? shift : $CURRENT_UNIT;
+            my $self = eval { $_[0]->isa('Log::Work'); } ? shift : $CURRENT_UNIT;
+            unless( eval { $self->isa( 'Log::Work' ); } ) {
+                my $msg =  "Unable to set $result_type on an invalid object.";
+                $ON_ERROR->( $msg );
+                croak $msg;
+            }
             $self->{result} = $result_type;
+
+            if( @_ ) {
+                my $value = shift;
+                my $name = $result{$result_type};
+                $self->record_value( $name, $value );
+            }
             ();
         };
         no strict 'refs';
@@ -107,28 +142,6 @@ BEGIN {
     }
 }
 
-sub _set_handler {
-    my $target  = shift;
-    my $default = shift;
-
-    if( @_ == 1 ) {
-        my $coderef = shift;
-        return unless defined $coderef;
-
-        $$target = $coderef eq 'DEFAULT'      ?  $default
-                 : reftype $coderef eq 'CODE' ? $coderef
-                 : $$target;
-    }
-    elsif( @_ == 2 ) {
-        my ( $class, $method ) = @_;
-        my $resolved = $class->can($method);
-
-        return unless $resolved;
-        $$target = sub{ $class->$method(@_) };
-    }
-
-    return;
-}
 
 sub on_error {
     shift; # Remove invocant
@@ -140,6 +153,14 @@ sub on_finish {
     shift; # Remove invocant
     _set_handler( \$ON_FINISH, $DEFAULT_ON_FINISH, @_ );
     return;
+}
+
+sub has_default_on_finish {
+    return $ON_FINISH eq $DEFAULT_ON_FINISH;
+}
+
+sub has_default_on_error {
+    return $ON_ERROR eq $DEFAULT_ON_ERROR;
 }
 
 
@@ -208,23 +229,20 @@ sub get_metrics {
 # ----------------------------------------------------------
 
 sub start {
-    # Why register an error every time we start a unit of work?
-    # $ON_ERROR->( "STARTING WORK", @_ );
-    my $class   = shift;
-    my $name    = shift;
-    my $pvid_in = shift;
+    my $class    = shift;
+    my $name     = shift;
+    my $pvid_in  = shift;
+    my $alt_base = shift;
 
     # Fill in a provenance id if a good one wasn't provided.
     # Checked via validity test instead of argument count to make it simpler
     # to accept provenance from optional request headers or whatnot.
     my $pvid = $pvid_in;
-    if( !Log::ProvenanceId::is_valid_prov_id($pvid) ) {
-        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::ProvenanceId::new_root_id;
+    if( !Log::Work::ProvenanceId::is_valid_prov_id($pvid) ) {
+        $pvid = $CURRENT_UNIT ? $CURRENT_UNIT->new_child_id : Log::Work::ProvenanceId::new_root_id($alt_base);
     }
 
-    my $package = caller;
-    $package = caller(2)
-        if $package eq $class or $package eq __PACKAGE__;
+    my $package = first_external_package();
 
     my $self = $class->new(
         parent      => $CURRENT_UNIT,
@@ -241,12 +259,12 @@ sub start {
 
         metrics     => {},
         values      => {},
-        accumulator => {},
         counter     => 0,   # First child is 1, next is 2, etc, regardless of internal/external.
     );
 
     $CURRENT_UNIT->_add_child($self) if $CURRENT_UNIT;
 
+    # Log this down here so that it could show up in the new unit of work
     if( defined($pvid_in) && $pvid_in ne $pvid ) {
         $ON_ERROR->( 'Attempt to use invalid provenance id', $pvid_in, $self );
     }
@@ -262,7 +280,20 @@ sub step {
 
     local $CURRENT_UNIT = $self;
 
-    return $code->();
+    if (!defined wantarray) {
+        $code->();
+        return;
+    }
+    if (wantarray) {
+        my @return_values = $code->();
+        $self->{return_values} = \@return_values;
+        return @return_values;
+    }
+    else {
+        my $return_value = $code->();
+        $self->{return_values} = [ $return_value ];
+        return $return_value;
+    }
 }
 
 sub finish {
@@ -275,7 +306,7 @@ sub finish {
             children    => {}, 
             id          => 'INVALID',
             name        => 'INVALID',
-            package     =>  'INVALID',
+            package     => 'INVALID',
 
             start_time  => time,
             end_time    => undef,
@@ -284,13 +315,13 @@ sub finish {
 
             metrics     => {},
             values      => {},
-            accumulator => {},
         );
     }
 
     if( $self->{finished} ) {
-        $ON_ERROR->( 'Attempt to log previously finished Work', $self );
-        $self->RESULT_INVALID
+        my $msg = 'Attempt to finish previously finished Work';
+        $ON_ERROR->( $msg, $self );
+        $self->RESULT_INVALID($msg);
     }
 
     my @children = $self->_get_children;
@@ -299,8 +330,9 @@ sub finish {
     $self->{end_time} = time;
     $self->{duration} = $self->{end_time} - $self->{start_time};
 
-    $self->RESULT_INVALID
-        unless $self->has_result;
+    unless ( $self->has_result ) {
+        $self->RESULT_INVALID('No result specified');
+    }
 
     $self->{finished} = 1;
 
@@ -313,50 +345,26 @@ sub current_unit { $CURRENT_UNIT }
 #   High level interface methods
 # ----------------------------------------------------------
 
-sub WORK (&$;$) {
+sub WORK (&$;$$) {
     my $code = shift;
     my $u = __PACKAGE__->start(@_);
 
     local $@;
     eval {
-       $u->step( $code );
+       # Forcing array context
+       my @foo = $u->step( $code );
+       1;
     }
     or do {
         my $e = $@;
-        $u->RESULT_EXCEPTION
+        $u->RESULT_EXCEPTION()
             unless $u->has_result;
         $u->record_value( exception => $e );
+        $u->{return_exception} = $e;
     };
 
     return $u->finish;
 }
-
-sub REMOTE (&$;$) {
-    my $code = shift;
-    my $name = shift;
-    my $pvid = @_            ? shift 
-             : $CURRENT_UNIT ? $CURRENT_UNIT->new_remote_id
-             : Log::ProvenanceId::new_root_id;
-
-    my $u = __PACKAGE__->start($name, $pvid, @_);
-
-    local $@;
-    eval {
-       $u->step( $code );
-    }
-    or do {
-        my $e = $@;
-        $u->RESULT_EXCEPTION
-            unless $u->has_result;
-        $u->record_value( exception => $e );
-    };
-
-    return $u->finish;
-}
-
-
-
-
 
 # ----------------------------------------------------------
 #  Task methods
@@ -366,47 +374,59 @@ sub new_child_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Invalid unit of work specified.' );
-        return Log::ProvenanceId::new_root_id();
+        $ON_ERROR->( 'Error generating child ID: Invalid parent unit of work specified.' );
+        return Log::Work::ProvenanceId::new_root_id();
     }
 
-    $self->{counter}++;
-
-    my $id = sprintf "%s,%s",
-        $self->{id}, $self->{counter};
-
-    return $id;
+    return $self->_new_id( '' );
 }
 
 sub new_remote_id {
     my $self = @_ ? shift : $CURRENT_UNIT;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Invalid unit of work specified.' );
-        return Log::ProvenanceId::new_root_id();
+        my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
+        $ON_ERROR->( $msg );
+        croak $msg;
     }
+
+    return $self->_new_id( 'r' );
+}
+
+sub _new_id {
+    my $self       = shift;
+    my $remotifier = shift; # '' or 'r'
 
     $self->{counter}++;
 
-    my $id = sprintf "%s,%sr",
-        $self->{id}, $self->{counter};
+    my $separator = $self->{id} =~ /:$/ ? '' : ',';
+
+    my $id = sprintf "%s%s%s%s", $self->{id}, $separator, $self->{counter}, $remotifier;
 
     return $id;
 }
 
 
 sub record_value {
-    my $self   = blessed $_[0] ? shift : $CURRENT_UNIT;
-    my $name  = shift;
-    my $value = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
+    my @kvp  = @_;
 
-    my $values = $self->_values;
+    # Check for even number of arguments.
+    $ON_ERROR->( 'record_values() requires a list of name/value pairs for its arguments' )
+        unless @kvp % 2 == 0;
 
-    if( exists $values->{$name} ) {
-        $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
+    while( @kvp ) {
+        my $name  = shift @kvp;
+        my $value = shift @kvp;
+
+        my $values = $self->_values;
+
+        if( exists $values->{$name} ) {
+            $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name} );
+        }
+
+        $values->{$name} = $value;
     }
-
-    $values->{$name} = $value;
 
     return $self;
 }
@@ -461,32 +481,198 @@ sub has_result {
     return defined $self->{result};
 }
 
-sub _header {
-    my $self = shift;
-
-    my $timestamp = gmtime();
-    my $type      = 'UOW';
-    my $log_level = '%LOG_LEVEL%';
-    my $host_name = '';
-    my $program   = $0;
-    my $pid       = $$;
-    my $tid       = 0;
-    my $pvid      = $self->{id};
-    my $namespace = $self->{namespace};
-    my $name      = $self->{name};
-
-    return [
-        $timestamp,
-        $type,
-        $log_level,
-        $host_name,
-        $program,
-        $pid,
-        $tid,
-        $pvid,
-        $namespace,
-    ];
-}
-
-
 1;
+
+__END__
+
+=head1 NAME
+
+Log::Work
+
+=head1 VERSION
+
+version 0.02.03
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=head2 Simplified Interface
+
+
+=head3 WORK
+
+The core of the simplified interface.  This function is the heart of unit of work logging.
+
+Arguments:
+
+    Code to execute
+    Unit of Work Name
+    Provenance Id (optional)
+
+Return:
+
+    Result of the on_finish() handler.
+
+Examples:
+
+    Log::Work->on_finish( sub { serialize_work_for_my_logger( @_ ) } );
+
+    $application->log( WORK { eat_cheese() } 'Cheese Consumption' );
+
+    my $request = $application->get_dairy_request();
+    $application->log( WORK { eat_more_cheese() } 'Further Cheese Consumption', $request->provenance_id );
+
+What's happening here?
+
+C<WORK> handles a lot of book-keeping so you don't have to.
+
+When called, it:
+
+=over 4
+
+=item 1.
+
+Creates a unit of work object complete with a correct provenance id.
+
+=item 1.
+
+Calls the code it was passed in.
+
+=item 1.
+
+Handles all the book-keeping needed to:
+
+=over 4
+
+=item *
+
+Track execution time
+
+=item *
+
+Enforce result classification
+
+=item *
+
+Propagate return values
+
+=item *
+
+Propagate exceptions
+
+=item *
+
+Transform the Log::Work object into something your logging system can handle.
+
+=back
+
+=back
+
+=head3 current_unit
+
+Inside a unit of work, we always know what unit we are in.  You can access the current Log::Work object at any time by calling C<current_unit>
+either as an imported funtion or as a Log::Work class method.
+
+Examples:
+
+    WORK {
+        my $u = current_unit();
+
+        grubby_sub();
+
+        WORK {
+
+            grubby_sub();
+
+        } 'Inner grub';
+
+    } 'Outer grub';
+
+    sub grubby_sub {
+        my $u = Log::Work->current_unit();
+    }
+
+In this example the Work object accessed by C<grubby_sub()> depends on the call. In the outer block, the 'Outer grub' unit is found.  In the inner block, we access 'Inner grub'.
+
+=head3 RESULT_NORMAL
+=head3 RESULT_FAILURE
+=head3 RESULT_EXCEPTION
+=head3 RESULT_INVALID
+
+
+=head2 Manual Interface
+
+    start
+
+    on_error
+    on_finish
+    step
+    set_result
+    finish
+    _new_id
+
+    new_child_id
+    new_remote_id
+
+    has_result
+    record_value
+    add_metric
+    current_unit
+    has_default_on_finish
+    has_default_on_error
+    get_values
+    get_metrics
+
+=head1 EXPORTS
+
+Log::Work flies in the face of common sense and pollutes your namespace with exported functions.  It does this with the goal of simplicity.
+
+=head2 Exportable functions
+
+    WORK
+
+    RESULT_EXCEPTION  RESULT_FAILURE
+    RESULT_INVALID    RESULT_NORMAL
+
+    has_result        set_result
+    record_value      add_metric
+
+    current_unit
+
+    new_child_id      new_remote_id
+
+=head2 Export tags
+
+=over 4
+
+=item :standard
+
+All of :simple :new_ids :metadata
+
+=item :simple
+
+    WORK
+
+    RESULT_NORMAL
+    RESULT_FAILURE
+    RESULT_INVALID
+    RESULT_EXCEPTION
+
+=item :new_ids
+
+    new_child_id
+    new_remote_id
+
+=item :metadata
+
+    add_metric
+    record_value
+    has_result
+    set_result
+
+=back
+
+=head1 SEE ALSO
+
+=head1 CREDITS
