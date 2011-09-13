@@ -9,6 +9,7 @@ use Log::Work::Util qw< _set_handler first_external_package >;
 
 use Time::HiRes qw( time );
 use Scalar::Util qw(weaken blessed reftype );
+use Carp qw( croak );
 
 use Exporter qw( import );
 our @EXPORT_OK = qw(
@@ -104,13 +105,32 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
     }
 };
 
-BEGIN {
 
-    for my $result_type (qw( INVALID EXCEPTION FAILURE NORMAL )) {
+# Define RESULT_FAILURE, RESULT_EXCEPTION, RESULT_INVALID, and RESULT_NORMAL
+BEGIN {
+    my %result = (
+        INVALID    => 'reason_invalid',
+        EXCEPTION  => 'exception',
+        FAILURE    => 'reason_failure',
+        NORMAL     => 'reason_normal',
+    );
+
+    for my $result_type ( keys %result ) {
 
         my $sub = sub {
             my $self = @_ ? shift : $CURRENT_UNIT;
+            unless( eval { $self->isa( 'Log::Work' ); } ) {
+                my $msg =  "Unable to set $result_type on an invalid object.";
+                $ON_ERROR->( $msg );
+                croak $msg;
+            }
             $self->{result} = $result_type;
+
+            if( @_ ) {
+                my $value = shift;
+                my $name = $result{$result_type};
+                $self->record_value( $name, $value );
+            }
             ();
         };
         no strict 'refs';
@@ -298,8 +318,7 @@ sub finish {
     if( $self->{finished} ) {
         my $msg = 'Attempt to finish previously finished Work';
         $ON_ERROR->( $msg, $self );
-        $self->RESULT_INVALID;
-        $self->record_value( reason_invalid => $msg );
+        $self->RESULT_INVALID($msg);
     }
 
     my @children = $self->_get_children;
@@ -309,8 +328,7 @@ sub finish {
     $self->{duration} = $self->{end_time} - $self->{start_time};
 
     unless ( $self->has_result ) {
-        $self->record_value( reason_invalid => 'No result specified' );
-        $self->RESULT_INVALID;
+        $self->RESULT_INVALID('No result specified');
     }
 
     $self->{finished} = 1;
@@ -336,7 +354,7 @@ sub WORK (&$;$$) {
     }
     or do {
         my $e = $@;
-        $u->RESULT_EXCEPTION
+        $u->RESULT_EXCEPTION()
             unless $u->has_result;
         $u->record_value( exception => $e );
         $u->{return_exception} = $e;
@@ -366,7 +384,7 @@ sub new_remote_id {
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
         $ON_ERROR->( $msg );
-        die $msg;
+        croak $msg;
     }
 
     return $self->_new_id( 'r' );
