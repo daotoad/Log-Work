@@ -118,7 +118,7 @@ BEGIN {
     for my $result_type ( keys %result ) {
 
         my $sub = sub {
-            my $self = @_ ? shift : $CURRENT_UNIT;
+            my $self = eval { $_[0]->isa('Log::Work'); } ? shift : $CURRENT_UNIT;
             unless( eval { $self->isa( 'Log::Work' ); } ) {
                 my $msg =  "Unable to set $result_type on an invalid object.";
                 $ON_ERROR->( $msg );
