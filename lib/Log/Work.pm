@@ -1,6 +1,6 @@
 package Log::Work;
 BEGIN {
-  $Log::Work::VERSION = '0.02.01';
+  $Log::Work::VERSION = '0.02.02';
 }
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
@@ -12,6 +12,7 @@ use Log::Work::Util qw< _set_handler first_external_package >;
 
 use Time::HiRes qw( time );
 use Scalar::Util qw(weaken blessed reftype );
+use Carp qw( croak );
 
 use Exporter qw( import );
 our @EXPORT_OK = qw(
@@ -107,13 +108,32 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
     }
 };
 
-BEGIN {
 
-    for my $result_type (qw( INVALID EXCEPTION FAILURE NORMAL )) {
+# Define RESULT_FAILURE, RESULT_EXCEPTION, RESULT_INVALID, and RESULT_NORMAL
+BEGIN {
+    my %result = (
+        INVALID    => 'reason_invalid',
+        EXCEPTION  => 'exception',
+        FAILURE    => 'reason_failure',
+        NORMAL     => 'reason_normal',
+    );
+
+    for my $result_type ( keys %result ) {
 
         my $sub = sub {
             my $self = @_ ? shift : $CURRENT_UNIT;
+            unless( eval { $self->isa( 'Log::Work' ); } ) {
+                my $msg =  "Unable to set $result_type on an invalid object.";
+                $ON_ERROR->( $msg );
+                croak $msg;
+            }
             $self->{result} = $result_type;
+
+            if( @_ ) {
+                my $value = shift;
+                my $name = $result{$result_type};
+                $self->record_value( $name, $value );
+            }
             ();
         };
         no strict 'refs';
@@ -301,8 +321,7 @@ sub finish {
     if( $self->{finished} ) {
         my $msg = 'Attempt to finish previously finished Work';
         $ON_ERROR->( $msg, $self );
-        $self->RESULT_INVALID;
-        $self->record_value( reason_invalid => $msg );
+        $self->RESULT_INVALID($msg);
     }
 
     my @children = $self->_get_children;
@@ -312,8 +331,7 @@ sub finish {
     $self->{duration} = $self->{end_time} - $self->{start_time};
 
     unless ( $self->has_result ) {
-        $self->record_value( reason_invalid => 'No result specified' );
-        $self->RESULT_INVALID;
+        $self->RESULT_INVALID('No result specified');
     }
 
     $self->{finished} = 1;
@@ -339,7 +357,7 @@ sub WORK (&$;$$) {
     }
     or do {
         my $e = $@;
-        $u->RESULT_EXCEPTION
+        $u->RESULT_EXCEPTION()
             unless $u->has_result;
         $u->record_value( exception => $e );
         $u->{return_exception} = $e;
@@ -369,7 +387,7 @@ sub new_remote_id {
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
         $ON_ERROR->( $msg );
-        die $msg;
+        croak $msg;
     }
 
     return $self->_new_id( 'r' );
@@ -473,13 +491,187 @@ Log::Work
 
 =head1 VERSION
 
-version 0.02.01
+version 0.02.02
 
 =head1 SYNOPSIS
 
 =head1 DESCRIPTION
 
+=head2 Simplified Interface
+
+
+=head3 WORK
+
+The core of the simplified interface.  This function is the heart of unit of work logging.
+
+Arguments:
+
+    Code to execute
+    Unit of Work Name
+    Provenance Id (optional)
+
+Return:
+
+    Result of the on_finish() handler.
+
+Examples:
+
+    Log::Work->on_finish( sub { serialize_work_for_my_logger( @_ ) } );
+
+    $application->log( WORK { eat_cheese() } 'Cheese Consumption' );
+
+    my $request = $application->get_dairy_request();
+    $application->log( WORK { eat_more_cheese() } 'Further Cheese Consumption', $request->provenance_id );
+
+What's happening here?
+
+C<WORK> handles a lot of book-keeping so you don't have to.
+
+When called, it:
+
+=over 4
+
+=item 1.
+
+Creates a unit of work object complete with a correct provenance id.
+
+=item 1.
+
+Calls the code it was passed in.
+
+=item 1.
+
+Handles all the book-keeping needed to:
+
+=over 4
+
+=item *
+
+Track execution time
+
+=item *
+
+Enforce result classification
+
+=item *
+
+Propagate return values
+
+=item *
+
+Propagate exceptions
+
+=item *
+
+Transform the Log::Work object into something your logging system can handle.
+
+=back
+
+=back
+
+=head3 current_unit
+
+Inside a unit of work, we always know what unit we are in.  You can access the current Log::Work object at any time by calling C<current_unit>
+either as an imported funtion or as a Log::Work class method.
+
+Examples:
+
+    WORK {
+        my $u = current_unit();
+
+        grubby_sub();
+
+        WORK {
+
+            grubby_sub();
+
+        } 'Inner grub';
+
+    } 'Outer grub';
+
+    sub grubby_sub {
+        my $u = Log::Work->current_unit();
+    }
+
+In this example the Work object accessed by C<grubby_sub()> depends on the call. In the outer block, the 'Outer grub' unit is found.  In the inner block, we access 'Inner grub'.
+
+=head3 RESULT_NORMAL
+=head3 RESULT_FAILURE
+=head3 RESULT_EXCEPTION
+=head3 RESULT_INVALID
+
+
+=head2 Manual Interface
+
+    start
+
+    on_error
+    on_finish
+    step
+    set_result
+    finish
+    _new_id
+
+    new_child_id
+    new_remote_id
+
+    has_result
+    record_value
+    add_metric
+    current_unit
+    has_default_on_finish
+    has_default_on_error
+    get_values
+    get_metrics
+
 =head1 EXPORTS
+
+Log::Work flies in the face of common sense and pollutes your namespace with exported functions.  It does this with the goal of simplicity.
+
+=head2 Exportable functions
+
+    WORK
+
+    RESULT_EXCEPTION  RESULT_FAILURE
+    RESULT_INVALID    RESULT_NORMAL
+
+    has_result        set_result
+    record_value      add_metric
+
+    current_unit
+
+    new_child_id      new_remote_id
+
+=head2 Export tags
+
+=over 4
+
+=item :standard
+
+All of :simple :new_ids :metadata
+
+=item :simple
+
+    WORK
+
+    RESULT_NORMAL
+    RESULT_FAILURE
+    RESULT_INVALID
+    RESULT_EXCEPTION
+
+=item :new_ids
+
+    new_child_id
+    new_remote_id
+
+=item :metadata
+
+    add_metric
+    record_value
+    has_result
+    set_result
+
+=back
 
 =head1 SEE ALSO
 

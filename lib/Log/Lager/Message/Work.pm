@@ -1,6 +1,6 @@
 package Log::Lager::Message::Work;
 BEGIN {
-  $Log::Lager::Message::Work::VERSION = '0.02.01';
+  $Log::Lager::Message::Work::VERSION = '0.02.02';
 }
 use strict;
 use warnings;
@@ -91,7 +91,7 @@ Log::Lager::Message::Work - A Log::Lager::Message object for use with Log::Lager
 
 =head1 VERSION
 
-version 0.02.01
+version 0.02.02
 
 =head1 SYNOPSIS
 

@@ -1,6 +1,6 @@
 package Log::Lager::Message::AdHoc;
 BEGIN {
-  $Log::Lager::Message::AdHoc::VERSION = '0.02.01';
+  $Log::Lager::Message::AdHoc::VERSION = '0.02.02';
 }
 use strict;
 use warnings;
@@ -58,7 +58,7 @@ Log::Lager::Message::AdHoc - A Log::Lager::Message object for use with Log::Lage
 
 =head1 VERSION
 
-version 0.02.01
+version 0.02.02
 
 =head1 SYNOPSIS
 
