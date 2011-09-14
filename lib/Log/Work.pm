@@ -300,7 +300,7 @@ sub finish {
         $ON_ERROR->( "Invalid Work specified for finish", $self );
         $self = Log::Work->new(
             parent      => 'INVALID',
-            children    => {}, 
+            children    => {},
             id          => 'INVALID',
             name        => 'INVALID',
             package     => 'INVALID',
@@ -456,7 +456,7 @@ sub add_metric {
     # Finally adjust the metric
     $metric->{count}++;
     $metric->{total} += $amount;
-    $metric->{unit}   = $unit 
+    $metric->{unit}   = $unit
         if defined $unit;
 
     return $self;

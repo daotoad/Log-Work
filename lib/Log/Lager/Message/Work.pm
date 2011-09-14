@@ -20,7 +20,7 @@ sub _init {
     $self->{provenance_id} = $work->{id};
     $self->{type} = "UOW";
 
-    $self->{$_} = $work->{$_} 
+    $self->{$_} = $work->{$_}
         for qw(
             id
             start_time
@@ -69,7 +69,7 @@ sub message {
                 end      => $self->{end_time},
                 duration => $self->{duration} * 1000,
                 result   => $self->{result},
-                metrics  => $self->{metrics}, 
+                metrics  => $self->{metrics},
                 values   => $self->{values},
             }
         },
