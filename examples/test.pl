@@ -2,29 +2,25 @@
 use strict;
 use warnings;
 
-use Log::Lager qw( FEWIDTG  pretty FEWIDTG );
-use Log::Work;
-use Log::Lager::Work;
+use Log::Lager qw( FEWIDTG );
+use Log::Work::SimpleLager ':standard';
 
 
-use Log::ProvenanceId 'FU.B234';
+use Log::Work::ProvenanceId 'FU.B234';
 
-Log::Lager::Work->register_standard_handlers();
-Log::Work->on_finish( 'Log::Lager::Work', 'new' );
-Log::Work->on_error( sub { ERROR @_ } );
 
 TRACE  qw( starting up now ) ;
 
 INFO WORK {
 
-     DEBUG "Beginning to do something.", $Log::Work::CURRENT_UNIT;
+    DEBUG "Beginning to do something.", $Log::Work::CURRENT_UNIT;
 
-    INFO REMOTE {
-        DEBUG "Remote ca ca";
+    INFO WORK {
         TRACE "Set inner result", $Log::Work::CURRENT_UNIT;
+        die "Bella Lugosi is dead.";
         RESULT_NORMAL;
 
-    } 'Inner'; 
+    } 'Inner';
 
     TRACE "Set outer result", $Log::Work::CURRENT_UNIT;
     RESULT_NORMAL;
