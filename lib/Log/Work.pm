@@ -569,6 +569,8 @@ either as an imported funtion or as a Log::Work class method.
 
 Examples:
 
+=begin text
+
     WORK {
         my $u = current_unit();
 
@@ -586,6 +588,8 @@ Examples:
         my $u = Log::Work->current_unit();
     }
 
+=end text
+
 In this example the Work object accessed by C<grubby_sub()> depends on the call. In the outer block, the 'Outer grub' unit is found.  In the inner block, we access 'Inner grub'.
 
 =head3 RESULT_NORMAL
@@ -593,6 +597,52 @@ In this example the Work object accessed by C<grubby_sub()> depends on the call.
 =head3 RESULT_EXCEPTION
 =head3 RESULT_INVALID
 
+Each unit of work should have a defined result: whether the intended effect of the code actually happened.
+In the case of processing a remote service call (or any interface boundary),
+this can be considered either from the caller's perspective or the server's perspective.
+This yields the following breakdown of result types:
+
+=begin text
+
+                            client
+                        happy  |  unhappy
+                               |
+       happy    RESULT_NORMAL  |  RESULT_FAILURE
+                               |
+server ------------------------+------------------
+
+       unhappy         RESULT_EXCEPTION
+
+=end text
+
+The extra type RESULT_INVALID is used if the unit of work ends without a result explicitly set.
+
+To indicate the result of a unit of work, one of the RESULT_* functions should be called.
+All of these functions may take an argument indicating the reason for the result.
+When using the simple WORK interface, the supplied code is run in an eval,
+and exceptions are automatically caught and recorded with the exception itself as the reason for the result.
+If the RESULT_* functions are called multiple times in the same unit of work,
+then the last one wins for setting the result.
+
+Example:
+
+=begin text
+
+    WORK {
+        my $name = "somefile";
+        if (!-f $name) {
+            RESULT_FAILURE "File doesn't exist";
+            return;
+        }
+
+        my $file;
+        open($file, ">", "somefile") or die "Couldn't open file for writing: $!";
+        print $file "FOO";
+        close $file;
+        RESULT_NORMAL;
+    } "WriteFOO";
+
+=end text
 
 =head2 Manual Interface
 
