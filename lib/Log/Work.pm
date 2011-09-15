@@ -614,8 +614,11 @@ Examples:
 In this example the Work object accessed by C<grubby_sub()> depends on the call. In the outer block, the 'Outer grub' unit is found.  In the inner block, we access 'Inner grub'.
 
 =head3 RESULT_NORMAL
+
 =head3 RESULT_FAILURE
+
 =head3 RESULT_EXCEPTION
+
 =head3 RESULT_INVALID
 
 Each unit of work should have a defined result: whether the intended effect of the code actually happened.
