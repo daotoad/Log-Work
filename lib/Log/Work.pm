@@ -117,10 +117,10 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
 # Define RESULT_FAILURE, RESULT_EXCEPTION, RESULT_INVALID, and RESULT_NORMAL
 BEGIN {
     my %result = (
-        INVALID    => 'reason_invalid',
+        INVALID    => 'invalidReason',
         EXCEPTION  => 'exception',
-        FAILURE    => 'reason_failure',
-        NORMAL     => 'reason_normal',
+        FAILURE    => 'failureCode',
+        NORMAL     => 'normalReason',
     );
 
     for my $result_type ( keys %result ) {

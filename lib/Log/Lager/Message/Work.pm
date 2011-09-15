@@ -37,6 +37,9 @@ sub _init {
             return_exception
         );
 
+    $self->{$_} = $self->_to_timestamp( $self->{$_} )
+        for qw/ start_time end_time /;
+
     $self->SUPER::_init( context => 1, message => [], want_bits => 1, @_ );
 }
 
