@@ -10,7 +10,7 @@ use Log::Work::Util qw< first_external_package >;
 sub _init {
     my $self = shift;
 
-    my $cu = Log::Work->current_unit;
+    my $cu = Log::Work->get_current_unit;
 
     $self->{provenance_id} = $cu->{id};
     $self->{type} = "ADHOC";
