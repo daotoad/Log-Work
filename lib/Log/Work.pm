@@ -28,6 +28,10 @@ our @EXPORT_OK = qw(
         new_child_id
         new_remote_id
         current_unit
+
+        get_children
+        get_parent
+        get_top_unit
 );
 
 our @EXPORT = qw(
@@ -53,6 +57,10 @@ our %EXPORT_TAGS = (
                           set_result
                           has_result
                      )],
+        chain     => [qw( get_children
+                          get_parent
+                          get_top_unit
+                     )],
         standard  => [qw(
                           WORK
                           RESULT_NORMAL
@@ -65,7 +73,7 @@ our %EXPORT_TAGS = (
                           record_value
                           set_result
                           has_result
-            )],
+                     )],
 );
 
 # Keep track of the current unit of work.
@@ -202,12 +210,25 @@ sub _add_child {
     return $self;
 }
 
-sub _get_children {
+sub get_children {
     my $self = shift;
 
     my $children = $self->_children;
 
     return grep $_, values %$children;
+}
+
+sub get_parent {
+    my $self = shift;
+
+    return $self->{parent};
+}
+
+sub get_top_unit {
+    my $self = shift;
+
+    my $p = $self->get_parent;
+    return $p ? $p->get_top_unit : $self;
 }
 
 sub get_values {
@@ -321,7 +342,7 @@ sub finish {
         $self->RESULT_INVALID($msg);
     }
 
-    my @children = $self->_get_children;
+    my @children = $self->get_children;
     $_->finish for grep !$_->{finished}, grep defined, @children;
 
     $self->{end_time} = time;
@@ -635,6 +656,9 @@ Log::Work flies in the face of common sense and pollutes your namespace with exp
 
     new_child_id      new_remote_id
 
+    get_children
+    get_parent        get_top_unit
+
 =head2 Export tags
 
 =over 4
@@ -663,6 +687,13 @@ All of :simple :new_ids :metadata
     record_value
     has_result
     set_result
+
+=item :chain
+
+    get_children
+    get_parent
+    get_top_unit
+
 
 =back
 
