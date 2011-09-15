@@ -1,6 +1,6 @@
 package Log::Work::SimpleLager;
 BEGIN {
-  $Log::Work::SimpleLager::VERSION = '0.02.02';
+  $Log::Work::SimpleLager::VERSION = '0.03.00';
 }
 use strict;
 use warnings;
@@ -66,7 +66,7 @@ Log::Work::SimpleLager - Make it easier to use Log::Work with Log::Lager
 
 =head1 VERSION
 
-version 0.02.02
+version 0.03.00
 
 =head1 SYNOPSIS
 

@@ -1,6 +1,6 @@
 package Log::Work::ProvenanceId;
 BEGIN {
-  $Log::Work::ProvenanceId::VERSION = '0.02.02';
+  $Log::Work::ProvenanceId::VERSION = '0.03.00';
 }
 
 use strict;
@@ -158,7 +158,7 @@ Log::Work::ProvenanceId
 
 =head1 VERSION
 
-version 0.02.02
+version 0.03.00
 
 =head1 SYNOPSIS
 

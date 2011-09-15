@@ -1,6 +1,6 @@
 package Log::Lager::Message::Work;
 BEGIN {
-  $Log::Lager::Message::Work::VERSION = '0.02.02';
+  $Log::Lager::Message::Work::VERSION = '0.03.00';
 }
 use strict;
 use warnings;
@@ -23,7 +23,7 @@ sub _init {
     $self->{provenance_id} = $work->{id};
     $self->{type} = "UOW";
 
-    $self->{$_} = $work->{$_} 
+    $self->{$_} = $work->{$_}
         for qw(
             id
             start_time
@@ -72,7 +72,7 @@ sub message {
                 end      => $self->{end_time},
                 duration => $self->{duration} * 1000,
                 result   => $self->{result},
-                metrics  => $self->{metrics}, 
+                metrics  => $self->{metrics},
                 values   => $self->{values},
             }
         },
@@ -91,7 +91,7 @@ Log::Lager::Message::Work - A Log::Lager::Message object for use with Log::Lager
 
 =head1 VERSION
 
-version 0.02.02
+version 0.03.00
 
 =head1 SYNOPSIS
 

@@ -1,6 +1,6 @@
 package Log::Work;
 BEGIN {
-  $Log::Work::VERSION = '0.02.02';
+  $Log::Work::VERSION = '0.03.00';
 }
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
@@ -31,6 +31,10 @@ our @EXPORT_OK = qw(
         new_child_id
         new_remote_id
         current_unit
+
+        get_children
+        get_parent
+        get_top_unit
 );
 
 our @EXPORT = qw(
@@ -56,6 +60,10 @@ our %EXPORT_TAGS = (
                           set_result
                           has_result
                      )],
+        chain     => [qw( get_children
+                          get_parent
+                          get_top_unit
+                     )],
         standard  => [qw(
                           WORK
                           RESULT_NORMAL
@@ -68,7 +76,7 @@ our %EXPORT_TAGS = (
                           record_value
                           set_result
                           has_result
-            )],
+                     )],
 );
 
 # Keep track of the current unit of work.
@@ -121,7 +129,7 @@ BEGIN {
     for my $result_type ( keys %result ) {
 
         my $sub = sub {
-            my $self = @_ ? shift : $CURRENT_UNIT;
+            my $self = eval { $_[0]->isa('Log::Work'); } ? shift : $CURRENT_UNIT;
             unless( eval { $self->isa( 'Log::Work' ); } ) {
                 my $msg =  "Unable to set $result_type on an invalid object.";
                 $ON_ERROR->( $msg );
@@ -205,12 +213,25 @@ sub _add_child {
     return $self;
 }
 
-sub _get_children {
+sub get_children {
     my $self = shift;
 
     my $children = $self->_children;
 
     return grep $_, values %$children;
+}
+
+sub get_parent {
+    my $self = shift;
+
+    return $self->{parent};
+}
+
+sub get_top_unit {
+    my $self = shift;
+
+    my $p = $self->get_parent;
+    return $p ? $p->get_top_unit : $self;
 }
 
 sub get_values {
@@ -303,7 +324,7 @@ sub finish {
         $ON_ERROR->( "Invalid Work specified for finish", $self );
         $self = Log::Work->new(
             parent      => 'INVALID',
-            children    => {}, 
+            children    => {},
             id          => 'INVALID',
             name        => 'INVALID',
             package     => 'INVALID',
@@ -324,7 +345,7 @@ sub finish {
         $self->RESULT_INVALID($msg);
     }
 
-    my @children = $self->_get_children;
+    my @children = $self->get_children;
     $_->finish for grep !$_->{finished}, grep defined, @children;
 
     $self->{end_time} = time;
@@ -459,7 +480,7 @@ sub add_metric {
     # Finally adjust the metric
     $metric->{count}++;
     $metric->{total} += $amount;
-    $metric->{unit}   = $unit 
+    $metric->{unit}   = $unit
         if defined $unit;
 
     return $self;
@@ -491,7 +512,7 @@ Log::Work
 
 =head1 VERSION
 
-version 0.02.02
+version 0.03.00
 
 =head1 SYNOPSIS
 
@@ -576,6 +597,8 @@ either as an imported funtion or as a Log::Work class method.
 
 Examples:
 
+=begin text
+
     WORK {
         my $u = current_unit();
 
@@ -593,13 +616,64 @@ Examples:
         my $u = Log::Work->current_unit();
     }
 
+=end text
+
 In this example the Work object accessed by C<grubby_sub()> depends on the call. In the outer block, the 'Outer grub' unit is found.  In the inner block, we access 'Inner grub'.
 
 =head3 RESULT_NORMAL
+
 =head3 RESULT_FAILURE
+
 =head3 RESULT_EXCEPTION
+
 =head3 RESULT_INVALID
 
+Each unit of work should have a defined result: whether the intended effect of the code actually happened.
+In the case of processing a remote service call (or any interface boundary),
+this can be considered either from the caller's perspective or the server's perspective.
+This yields the following breakdown of result types:
+
+=begin text
+
+                            client
+                        happy  |  unhappy
+                               |
+       happy    RESULT_NORMAL  |  RESULT_FAILURE
+                               |
+server ------------------------+------------------
+
+       unhappy         RESULT_EXCEPTION
+
+=end text
+
+The extra type RESULT_INVALID is used if the unit of work ends without a result explicitly set.
+
+To indicate the result of a unit of work, one of the RESULT_* functions should be called.
+All of these functions may take an argument indicating the reason for the result.
+When using the simple WORK interface, the supplied code is run in an eval,
+and exceptions are automatically caught and recorded with the exception itself as the reason for the result.
+If the RESULT_* functions are called multiple times in the same unit of work,
+then the last one wins for setting the result.
+
+Example:
+
+=begin text
+
+    WORK {
+        my $name = "somefile";
+        if (!-f $name) {
+            RESULT_FAILURE "File doesn't exist";
+            return;
+        }
+
+        my $file;
+        open($file, ">", "somefile") or die "Couldn't open file for writing: $!";
+        print $file "FOO";
+        close $file;
+        RESULT_NORMAL;
+    } "WriteFOO";
+
+=end text
 
 =head2 Manual Interface
 
@@ -642,6 +716,9 @@ Log::Work flies in the face of common sense and pollutes your namespace with exp
 
     new_child_id      new_remote_id
 
+    get_children
+    get_parent        get_top_unit
+
 =head2 Export tags
 
 =over 4
@@ -670,6 +747,13 @@ All of :simple :new_ids :metadata
     record_value
     has_result
     set_result
+
+=item :chain
+
+    get_children
+    get_parent
+    get_top_unit
+
 
 =back
 
