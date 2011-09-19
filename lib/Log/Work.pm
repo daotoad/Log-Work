@@ -1,6 +1,6 @@
 package Log::Work;
 BEGIN {
-  $Log::Work::VERSION = '0.03.00';
+  $Log::Work::VERSION = '0.03.01';
 }
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
@@ -30,7 +30,7 @@ our @EXPORT_OK = qw(
 
         new_child_id
         new_remote_id
-        current_unit
+        get_current_unit
 
         get_children
         get_parent
@@ -63,6 +63,7 @@ our %EXPORT_TAGS = (
         chain     => [qw( get_children
                           get_parent
                           get_top_unit
+                          get_current_unit
                      )],
         standard  => [qw(
                           WORK
@@ -120,10 +121,10 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
 # Define RESULT_FAILURE, RESULT_EXCEPTION, RESULT_INVALID, and RESULT_NORMAL
 BEGIN {
     my %result = (
-        INVALID    => 'reason_invalid',
+        INVALID    => 'invalidReason',
         EXCEPTION  => 'exception',
-        FAILURE    => 'reason_failure',
-        NORMAL     => 'reason_normal',
+        FAILURE    => 'failureCode',
+        NORMAL     => 'normalReason',
     );
 
     for my $result_type ( keys %result ) {
@@ -214,7 +215,7 @@ sub _add_child {
 }
 
 sub get_children {
-    my $self = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
 
     my $children = $self->_children;
 
@@ -222,26 +223,26 @@ sub get_children {
 }
 
 sub get_parent {
-    my $self = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
 
     return $self->{parent};
 }
 
 sub get_top_unit {
-    my $self = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
 
     my $p = $self->get_parent;
     return $p ? $p->get_top_unit : $self;
 }
 
 sub get_values {
-    my $self  = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
     return %{ $self->_values };
 }
 
 
 sub get_metrics {
-    my $self  = shift;
+    my $self = blessed $_[0] ? shift : $CURRENT_UNIT;
     return %{ $self->{metrics} || {} };
 }
 
@@ -360,7 +361,7 @@ sub finish {
     return $ON_FINISH->( $self );
 }
 
-sub current_unit { $CURRENT_UNIT }
+sub get_current_unit { $CURRENT_UNIT }
 
 # ----------------------------------------------------------
 #   High level interface methods
@@ -467,11 +468,11 @@ sub add_metric {
         unless $metric;
 
     # Make sure units haven't changed.
-    if( defined $metric->{unit}
+    if( defined $metric->{units}
             and
         defined $unit
             and
-        $unit ne $metric->{unit}
+        $unit ne $metric->{units}
     ) {
         $ON_ERROR->( "ERROR - That metric has a different unit" );
         return $self;
@@ -480,7 +481,7 @@ sub add_metric {
     # Finally adjust the metric
     $metric->{count}++;
     $metric->{total} += $amount;
-    $metric->{unit}   = $unit
+    $metric->{units}   = $unit
         if defined $unit;
 
     return $self;
@@ -512,7 +513,7 @@ Log::Work
 
 =head1 VERSION
 
-version 0.03.00
+version 0.03.01
 
 =head1 SYNOPSIS
 
@@ -590,9 +591,9 @@ Transform the Log::Work object into something your logging system can handle.
 
 =back
 
-=head3 current_unit
+=head3 get_current_unit
 
-Inside a unit of work, we always know what unit we are in.  You can access the current Log::Work object at any time by calling C<current_unit>
+Inside a unit of work, we always know what unit we are in.  You can access the current Log::Work object at any time by calling C<get_current_unit>
 either as an imported funtion or as a Log::Work class method.
 
 Examples:
@@ -600,7 +601,7 @@ Examples:
 =begin text
 
     WORK {
-        my $u = current_unit();
+        my $u = get_current_unit();
 
         grubby_sub();
 
@@ -613,7 +614,7 @@ Examples:
     } 'Outer grub';
 
     sub grubby_sub {
-        my $u = Log::Work->current_unit();
+        my $u = Log::Work->get_current_unit();
     }
 
 =end text
@@ -692,7 +693,7 @@ Example:
     has_result
     record_value
     add_metric
-    current_unit
+    get_current_unit
     has_default_on_finish
     has_default_on_error
     get_values
@@ -712,7 +713,7 @@ Log::Work flies in the face of common sense and pollutes your namespace with exp
     has_result        set_result
     record_value      add_metric
 
-    current_unit
+    get_current_unit
 
     new_child_id      new_remote_id
 
@@ -750,6 +751,7 @@ All of :simple :new_ids :metadata
 
 =item :chain
 
+    get_current_unit
     get_children
     get_parent
     get_top_unit

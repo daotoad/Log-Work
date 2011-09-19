@@ -1,6 +1,6 @@
 package Log::Lager::Message::AdHoc;
 BEGIN {
-  $Log::Lager::Message::AdHoc::VERSION = '0.03.00';
+  $Log::Lager::Message::AdHoc::VERSION = '0.03.01';
 }
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ use Log::Work::Util qw< first_external_package >;
 sub _init {
     my $self = shift;
 
-    my $cu = Log::Work->current_unit;
+    my $cu = Log::Work->get_current_unit;
 
     $self->{provenance_id} = $cu->{id};
     $self->{type} = "ADHOC";
@@ -58,7 +58,7 @@ Log::Lager::Message::AdHoc - A Log::Lager::Message object for use with Log::Lage
 
 =head1 VERSION
 
-version 0.03.00
+version 0.03.01
 
 =head1 SYNOPSIS
 

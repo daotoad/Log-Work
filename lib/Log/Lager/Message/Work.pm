@@ -1,6 +1,6 @@
 package Log::Lager::Message::Work;
 BEGIN {
-  $Log::Lager::Message::Work::VERSION = '0.03.00';
+  $Log::Lager::Message::Work::VERSION = '0.03.01';
 }
 use strict;
 use warnings;
@@ -39,6 +39,9 @@ sub _init {
             return_values
             return_exception
         );
+
+    $self->{$_} = $self->_to_timestamp( $self->{$_} )
+        for qw/ start_time end_time /;
 
     $self->SUPER::_init( context => 1, message => [], want_bits => 1, @_ );
 }
@@ -91,7 +94,7 @@ Log::Lager::Message::Work - A Log::Lager::Message object for use with Log::Lager
 
 =head1 VERSION
 
-version 0.03.00
+version 0.03.01
 
 =head1 SYNOPSIS
 

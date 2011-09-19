@@ -51,6 +51,6 @@ ok( Log::Work::ProvenanceId::is_valid_prov_id( $kid ), 'Kid tests as valid' );
 ok( Log::Work::ProvenanceId::is_local( $kid ), 'Kid is not remote' );
 
 sub get_id {
-    my $cu = Log::Work->current_unit;
+    my $cu = Log::Work->get_current_unit;
     return $cu->{id};
 }
