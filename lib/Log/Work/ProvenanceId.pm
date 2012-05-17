@@ -1,4 +1,7 @@
 package Log::Work::ProvenanceId;
+{
+  $Log::Work::ProvenanceId::VERSION = '0.04.01';
+}
 
 use strict;
 use warnings;
@@ -153,6 +156,10 @@ __END__
 
 Log::Work::ProvenanceId
 
+=head1 VERSION
+
+version 0.04.01
+
 =head1 SYNOPSIS
 
 
@@ -203,4 +210,3 @@ Written by Mark Swayne for Marchex.
 Contributions from Alex Popiel and Tye McQueen.
 
 Thank you to Marchex for allowing me to share this work.
-

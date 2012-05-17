@@ -1,4 +1,7 @@
 package Log::Lager::Message::Work;
+{
+  $Log::Lager::Message::Work::VERSION = '0.04.01';
+}
 use strict;
 use warnings;
 
@@ -89,6 +92,10 @@ __END__
 
 Log::Lager::Message::Work - A Log::Lager::Message object for use with Log::Lager.
 
+=head1 VERSION
+
+version 0.04.01
+
 =head1 SYNOPSIS
 
     use Log::Lager;
@@ -126,4 +133,3 @@ Written by Mark Swayne for Marchex.
 Contributions from Alex Popiel and Tye McQueen.
 
 Thank you to Marchex for allowing me to share this work.
-

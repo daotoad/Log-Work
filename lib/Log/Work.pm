@@ -1,4 +1,7 @@
 package Log::Work;
+{
+  $Log::Work::VERSION = '0.04.01';
+}
 # ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
 
 use strict;
@@ -573,6 +576,10 @@ __END__
 =head1 NAME
 
 Log::Work
+
+=head1 VERSION
+
+version 0.04.01
 
 =head1 SYNOPSIS
 

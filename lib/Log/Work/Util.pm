@@ -1,4 +1,7 @@
 package Log::Work::Util;
+{
+  $Log::Work::Util::VERSION = '0.04.01';
+}
 
 use strict;
 use warnings;
