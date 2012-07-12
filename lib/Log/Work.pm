@@ -163,7 +163,7 @@ BEGIN {
                 croak $msg;
             }
 
-            my @reason = @_ ? ( $result{$result_type} ) : ();
+            my @reason = @_ ? ( $result{$result_type}, @_ ) : ();
 
             $self->set_result($result_type, @reason);
 
