@@ -378,6 +378,7 @@ sub finish {
     }
 
     if( $self->{finished} ) {
+        local $self->{finished} = undef;
         my $msg = 'Attempt to finish previously finished Work';
         $ON_ERROR->( $msg, $self );
         $self->RESULT_INVALID($msg);
