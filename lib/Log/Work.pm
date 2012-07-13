@@ -117,7 +117,7 @@ sub DESTROY {
     my $self = shift;
 
     unless ($self->is_finished) {
-        $ON_ERROR->('Work destroyed before finishing.', $self);
+        _error('Work destroyed before finishing.', $self);
         $self->finish;
     }
 
@@ -133,7 +133,7 @@ sub __check_obj {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg =  "Invalid object.";
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         croak $msg;
     }
 
@@ -159,7 +159,7 @@ BEGIN {
 
             unless ( eval { $self->isa( 'Log::Work' ); } ) {
                 my $msg =  "Unable to set $result_type on an invalid object.";
-                $ON_ERROR->( $msg, $self );
+                _error( $msg, $self );
                 croak $msg;
             }
 
@@ -322,7 +322,7 @@ sub start {
 
     # Log this down here so that it could show up in the new unit of work
     if( defined($pvid_in) && $pvid_in ne $pvid ) {
-        $ON_ERROR->( 'Attempt to use invalid provenance id', $pvid_in, $self );
+        _error( 'Attempt to use invalid provenance id', $pvid_in, $self );
     }
 
     return $self;
@@ -336,7 +336,7 @@ sub step {
 
     local $CURRENT_UNIT = $self;
 
-    $ON_ERROR->( "Executing a work step with finished unit", $self )
+    _error( "Executing a work step with finished unit", $self )
         if $self->is_finished;
 
     if (!defined wantarray) {
@@ -358,8 +358,10 @@ sub step {
 sub finish {
     my $self = shift;
 
+    local $CURRENT_UNIT = $self;
+
     unless( eval { $self->isa('Log::Work') } ) {
-        $ON_ERROR->( "Invalid Work specified for finish", $self );
+        _error( "Invalid Work specified for finish", $self );
         $self = Log::Work->new(
             parent      => 'INVALID',
             children    => {},
@@ -380,7 +382,7 @@ sub finish {
     if( $self->{finished} ) {
         local $self->{finished} = undef;
         my $msg = 'Attempt to finish previously finished Work';
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         $self->RESULT_INVALID($msg);
     }
 
@@ -402,6 +404,11 @@ sub finish {
 sub is_finished { 
     my $self = &__shift_obj;
     return $self->{finished} ? 1 : undef; 
+}
+
+sub _error {
+    local $CURRENT_UNIT = $_[-1];
+    $ON_ERROR->( @_ );
 }
 
 sub get_current_unit { $CURRENT_UNIT }
@@ -439,7 +446,7 @@ sub new_child_id {
     my $self = &__shift_obj;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Error generating child ID: Invalid parent unit of work specified.', $self );
+        _error( 'Error generating child ID: Invalid parent unit of work specified.', $self );
         return Log::Work::ProvenanceId::new_root_id();
     }
 
@@ -451,7 +458,7 @@ sub new_remote_id {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         croak $msg;
     }
 
@@ -477,10 +484,10 @@ sub record_value {
     my @kvp  = @_;
 
     # Check for even number of arguments.
-    $ON_ERROR->( 'record_values() requires a list of name/value pairs for its arguments', $self )
+    _error( 'record_values() requires a list of name/value pairs for its arguments', $self )
         unless @kvp % 2 == 0;
 
-    $ON_ERROR->( "record_value() with finished unit", \@kvp, $self )
+    _error( "record_value() with finished unit", \@kvp, $self )
         if $self->is_finished;
 
     while( @kvp ) {
@@ -490,7 +497,7 @@ sub record_value {
         my $values = $self->_values;
 
         if( exists $values->{$name} ) {
-            $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name}, $self );
+            _error( "ERROR - That value is already set!", $name, $values->{$name}, $self );
         }
 
         $values->{$name} = $value;
@@ -506,7 +513,7 @@ sub add_metric {
     my $amount = shift;
     my $unit   = shift;
 
-    $ON_ERROR->( "add_metric() to finished unit", name => $name, amount => $amount, unit => $unit, $self )
+    _error( "add_metric() to finished unit", name => $name, amount => $amount, unit => $unit, $self )
         if $self->is_finished;
 
     # Get the metric hash ref and be sure that it is stored in the object.
@@ -523,7 +530,7 @@ sub add_metric {
             and
         $unit ne $metric->{units}
     ) {
-        $ON_ERROR->( "ERROR - That metric has a different unit", $name, $self );
+        _error( "ERROR - That metric has a different unit", $name, $self );
         return $self;
     }
 
@@ -545,12 +552,12 @@ sub set_result {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg =  "Unable to set result_type on an invalid object.";
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         croak $msg;
     }
 
     if ( $self->is_finished ) {
-        $ON_ERROR->( "Setting result type on a finished unit of work.", $self );
+        _error( "Setting result type on a finished unit of work.", $self );
     }
 
     $self->{result} = $result_type;
