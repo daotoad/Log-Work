@@ -388,7 +388,7 @@ sub finish {
     $_->finish for grep !$_->{finished}, grep defined, @children;
 
     $self->{end_time} = time;
-    $self->{duration} = $self->{end_time} - $self->{start_time};
+    $self->{duration} = int( ($self->{end_time} - $self->{start_time}) * 1000 );
 
     unless ( $self->has_result ) {
         $self->RESULT_INVALID('No result specified');
