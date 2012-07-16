@@ -70,7 +70,7 @@ sub message {
         { uow => {
                 start    => $self->{start_time},
                 end      => $self->{end_time},
-                duration => $self->{duration},
+                duration => $self->{duration_ms},
                 result   => $self->{result},
                 metrics  => $self->{metrics},
                 values   => $self->{values},

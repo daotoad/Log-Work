@@ -389,8 +389,10 @@ sub finish {
     my @children = $self->get_children;
     $_->finish for grep !$_->{finished}, grep defined, @children;
 
-    $self->{end_time} = time;
-    $self->{duration} = int( ($self->{end_time} - $self->{start_time}) * 1000 );
+    $self->{end_time}    = time;
+    $self->{duration_s}  = $self->{end_time} - $self->{start_time};
+    $self->{duration_ms} = int( ($self->{duration_s}) * 1000 );
+    $self->{duration}    = $self->{duration_s}; # "duration" is deprecated
 
     unless ( $self->has_result ) {
         $self->RESULT_INVALID('No result specified');
