@@ -137,7 +137,7 @@ sub __check_obj {
         croak $msg;
     }
 
-    unshift @_, $self unless $self == $_[0];
+    unshift @_, $self if $_[0] && $self != $_[0];
 } 
 
 
