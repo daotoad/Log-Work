@@ -32,6 +32,10 @@ our @EXPORT_OK = qw(
         get_children
         get_parent
         get_top_unit
+
+        get_stash
+        set_stash
+        clear_stash
 );
 
 our @EXPORT = qw(
@@ -75,6 +79,10 @@ our %EXPORT_TAGS = (
                           set_result
                           has_result
                      )],
+        stash     => [qw( get_stash
+                          set_stash
+                          clear_stash
+                     )],
 );
 
 # Keep track of the current unit of work.
@@ -100,6 +108,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             metrics     values
             return_values
             return_exception
+            stash
         );
 
     sub new {
@@ -108,6 +117,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
 
         my $self = bless {}, $class;
         $self->{$_} = $arg{$_} for @ATTRIBUTES;
+
 
         return $self;
     }
@@ -278,6 +288,37 @@ sub get_values {
 sub get_metrics {
     my $self = &__shift_obj;
     return %{ $self->_metrics };
+}
+
+sub get_stash {
+    my $self = &__shift_obj;
+    my $stash = $self->{stash} || {};
+
+    return %{ $stash } unless @_;
+    return $stash->{$_} if @_==1;
+    return map $stash->{$_}, @_;
+}
+
+sub set_stash {
+    my $self = &__shift_obj;
+    my $stash = $self->{stash} || {};
+
+    croak "set_stash requires key/value pairs"
+        if( @_==0 or @_%2 );
+
+    my %args = @_;
+    my @vals = values %args;
+    @{$stash}{keys %args} = @vals;
+
+    return @vals;
+}
+
+sub clear_stash {
+    my $self = &__shift_obj;
+    my $stash = $self->{stash} || {};
+    croak "clear_stash requires key/value pairs" if @_%2;
+
+    return delete @{$stash}{@_};
 }
 
 # ----------------------------------------------------------
@@ -689,6 +730,36 @@ Examples:
 =end text
 
 In this example the Work object accessed by C<grubby_sub()> depends on the call. In the outer block, the 'Outer grub' unit is found.  In the inner block, we access 'Inner grub'.
+
+
+
+=head3 get_stash
+
+=head3 set_stash
+
+=head3 clear_stash
+
+Use these methods to manage a stash of user data related to the current work object.
+
+Store one or more keys with set_stash.
+
+Retrieve one or more keys with get_stash.
+
+Clear one or more keys with clear_stash.
+
+Stash data is available anywhere the current unit is available.
+
+    sub grubby_sub {
+        my $u = Log::Work->get_current_unit();
+
+        set_stash( foo => 11, bar => 12, baz => 13 );
+
+        my ($foo, $bar, $baz) = $u->get_stash(qw/ foo bar baz /);
+        my %stash = get_stash();
+
+        clear_stash( 'bar' );
+    }
+
 
 =head3 RESULT_NORMAL
 
