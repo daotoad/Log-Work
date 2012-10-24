@@ -295,13 +295,13 @@ sub get_stash {
     my $stash = $self->{stash} || {};
 
     return %{ $stash } unless @_;
-    return $stash->{$_} if @_==1;
+    return $stash->{$_[0]} if @_==1;
     return map $stash->{$_}, @_;
 }
 
 sub set_stash {
     my $self = &__shift_obj;
-    my $stash = $self->{stash} || {};
+    my $stash = $self->{stash} ||= {};
 
     croak "set_stash requires key/value pairs"
         if( @_==0 or @_%2 );
@@ -316,8 +316,8 @@ sub set_stash {
 sub clear_stash {
     my $self = &__shift_obj;
     my $stash = $self->{stash} || {};
-    croak "clear_stash requires key/value pairs" if @_%2;
 
+    @_ = keys %$stash unless @_;
     return delete @{$stash}{@_};
 }
 
@@ -752,12 +752,12 @@ Stash data is available anywhere the current unit is available.
     sub grubby_sub {
         my $u = Log::Work->get_current_unit();
 
-        set_stash( foo => 11, bar => 12, baz => 13 );
+        $u->set_stash( foo => 11, bar => 12, baz => 13 );
 
         my ($foo, $bar, $baz) = $u->get_stash(qw/ foo bar baz /);
-        my %stash = get_stash();
+        my %stash = $u->get_stash();
 
-        clear_stash( 'bar' );
+        $u->clear_stash( 'bar' );
     }
 
 
