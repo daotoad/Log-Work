@@ -1,5 +1,5 @@
 package Log::Work;
-# ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
+# ABSTRACT:  Break tasks into labeled units of work that are trackable across hosts and helper systems.
 
 use strict;
 use warnings;
@@ -7,7 +7,7 @@ use warnings;
 use Log::Work::ProvenanceId;
 use Log::Work::Util qw< _set_handler first_external_package >;
 
-use Time::HiRes qw( time );
+use Time::HiRes qw( time clock_gettime CLOCK_MONOTONIC );
 use Scalar::Util qw(weaken blessed reftype );
 use Carp qw( croak );
 
@@ -101,9 +101,9 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
     my @ATTRIBUTES = qw(
             parent      children
             id          counter
-            name        namespace
-            start_time  end_time
-            finished    duration
+            name        namespace   pid
+            start_time  end_time    start_clock end_clock
+            finished    duration    duration_s  duration_ms
             result      result_code
             metrics     values
             return_values
@@ -126,8 +126,8 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
 sub DESTROY {
     my $self = shift;
 
-    unless ($self->is_finished) {
-        $ON_ERROR->('Work destroyed before finishing.', $self);
+    if ($self->{pid} eq $$ && !$self->is_finished) {
+        _error('Work destroyed before finishing.', $self);
         $self->finish;
     }
 
@@ -143,11 +143,11 @@ sub __check_obj {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg =  "Invalid object.";
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         croak $msg;
     }
 
-    unshift @_, $self unless $self == $_[0];
+    unshift @_, $self if $_[0] && $self != $_[0];
 } 
 
 
@@ -169,7 +169,7 @@ BEGIN {
 
             unless ( eval { $self->isa( 'Log::Work' ); } ) {
                 my $msg =  "Unable to set $result_type on an invalid object.";
-                $ON_ERROR->( $msg, $self );
+                _error( $msg, $self );
                 croak $msg;
             }
 
@@ -295,13 +295,13 @@ sub get_stash {
     my $stash = $self->{stash} || {};
 
     return %{ $stash } unless @_;
-    return $stash->{$_} if @_==1;
+    return $stash->{$_[0]} if @_==1;
     return map $stash->{$_}, @_;
 }
 
 sub set_stash {
     my $self = &__shift_obj;
-    my $stash = $self->{stash} || {};
+    my $stash = $self->{stash} ||= {};
 
     croak "set_stash requires key/value pairs"
         if( @_==0 or @_%2 );
@@ -316,8 +316,8 @@ sub set_stash {
 sub clear_stash {
     my $self = &__shift_obj;
     my $stash = $self->{stash} || {};
-    croak "clear_stash requires key/value pairs" if @_%2;
 
+    @_ = keys %$stash unless @_;
     return delete @{$stash}{@_};
 }
 
@@ -348,8 +348,10 @@ sub start {
         id          => $pvid,
         name        => $name,
         namespace   => $package,
+        pid         => $$,
 
         start_time  => time,
+        start_clock => clock_gettime(CLOCK_MONOTONIC),
         end_time    => undef,
         result      => undef,
         finished    => undef,
@@ -363,7 +365,7 @@ sub start {
 
     # Log this down here so that it could show up in the new unit of work
     if( defined($pvid_in) && $pvid_in ne $pvid ) {
-        $ON_ERROR->( 'Attempt to use invalid provenance id', $pvid_in, $self );
+        _error( 'Attempt to use invalid provenance id', $pvid_in, $self );
     }
 
     return $self;
@@ -377,7 +379,7 @@ sub step {
 
     local $CURRENT_UNIT = $self;
 
-    $ON_ERROR->( "Executing a work step with finished unit", $self )
+    _error( "Executing a work step with finished unit", $self )
         if $self->is_finished;
 
     if (!defined wantarray) {
@@ -399,17 +401,22 @@ sub step {
 sub finish {
     my $self = shift;
 
+    local $CURRENT_UNIT = $self;
+
     unless( eval { $self->isa('Log::Work') } ) {
-        $ON_ERROR->( "Invalid Work specified for finish", $self );
+        _error( "Invalid Work specified for finish", $self );
         $self = Log::Work->new(
             parent      => 'INVALID',
             children    => {},
             id          => 'INVALID',
             name        => 'INVALID',
             package     => 'INVALID',
+            pid         => $$,
 
             start_time  => time,
+            start_clock => clock_gettime(CLOCK_MONOTONIC),
             end_time    => undef,
+            end_clock   => undef,
             result      => undef,
             finished    => undef,
 
@@ -418,17 +425,24 @@ sub finish {
         );
     }
 
+    # we only close work owned by this PID
+    return if $self->{pid} ne $$;
+
     if( $self->{finished} ) {
+        local $self->{finished} = undef;
         my $msg = 'Attempt to finish previously finished Work';
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         $self->RESULT_INVALID($msg);
     }
 
     my @children = $self->get_children;
     $_->finish for grep !$_->{finished}, grep defined, @children;
 
-    $self->{end_time} = time;
-    $self->{duration} = $self->{end_time} - $self->{start_time};
+    $self->{end_clock}   = clock_gettime(CLOCK_MONOTONIC);
+    $self->{end_time}    = time;
+    $self->{duration_s}  = $self->{end_clock} - $self->{start_clock};
+    $self->{duration_ms} = int( ($self->{duration_s}) * 1000 );
+    $self->{duration}    = $self->{duration_s}; # "duration" is deprecated
 
     unless ( $self->has_result ) {
         $self->RESULT_INVALID('No result specified');
@@ -442,6 +456,11 @@ sub finish {
 sub is_finished { 
     my $self = &__shift_obj;
     return $self->{finished} ? 1 : undef; 
+}
+
+sub _error {
+    local $CURRENT_UNIT = $_[-1];
+    $ON_ERROR->( @_ );
 }
 
 sub get_current_unit { $CURRENT_UNIT }
@@ -479,7 +498,7 @@ sub new_child_id {
     my $self = &__shift_obj;
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
-        $ON_ERROR->( 'Error generating child ID: Invalid parent unit of work specified.', $self );
+        _error( 'Error generating child ID: Invalid parent unit of work specified.', $self );
         return Log::Work::ProvenanceId::new_root_id();
     }
 
@@ -491,7 +510,7 @@ sub new_remote_id {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg = 'Error creating remote ID: Invalid parent unit of work specified.';
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         croak $msg;
     }
 
@@ -517,10 +536,10 @@ sub record_value {
     my @kvp  = @_;
 
     # Check for even number of arguments.
-    $ON_ERROR->( 'record_values() requires a list of name/value pairs for its arguments', $self )
+    _error( 'record_values() requires a list of name/value pairs for its arguments', $self )
         unless @kvp % 2 == 0;
 
-    $ON_ERROR->( "record_value() with finished unit", \@kvp, $self )
+    _error( "record_value() with finished unit", \@kvp, $self )
         if $self->is_finished;
 
     while( @kvp ) {
@@ -530,7 +549,7 @@ sub record_value {
         my $values = $self->_values;
 
         if( exists $values->{$name} ) {
-            $ON_ERROR->( "ERROR - That value is already set!", $name, $values->{$name}, $self );
+            _error( "ERROR - That value is already set!", $name, $values->{$name}, $self );
         }
 
         $values->{$name} = $value;
@@ -546,7 +565,7 @@ sub add_metric {
     my $amount = shift;
     my $unit   = shift;
 
-    $ON_ERROR->( "add_metric() to finished unit", name => $name, amount => $amount, unit => $unit, $self )
+    _error( "add_metric() to finished unit", name => $name, amount => $amount, unit => $unit, $self )
         if $self->is_finished;
 
     # Get the metric hash ref and be sure that it is stored in the object.
@@ -563,7 +582,7 @@ sub add_metric {
             and
         $unit ne $metric->{units}
     ) {
-        $ON_ERROR->( "ERROR - That metric has a different unit", $name, $self );
+        _error( "ERROR - That metric has a different unit", $name, $self );
         return $self;
     }
 
@@ -585,12 +604,12 @@ sub set_result {
 
     unless( eval { $self->isa( 'Log::Work' ); } ) {
         my $msg =  "Unable to set result_type on an invalid object.";
-        $ON_ERROR->( $msg, $self );
+        _error( $msg, $self );
         croak $msg;
     }
 
     if ( $self->is_finished ) {
-        $ON_ERROR->( "Setting result type on a finished unit of work.", $self );
+        _error( "Setting result type on a finished unit of work.", $self );
     }
 
     $self->{result} = $result_type;
@@ -605,6 +624,18 @@ sub has_result {
     my $self = &__shift_obj;
 
     return defined $self->{result};
+}
+
+sub yield {
+    my $self = &__shift_obj;
+
+    $self->{pid} = shift;
+}
+
+sub claim {
+    my $self = &__shift_obj;
+
+    $self->{pid} = $$;
 }
 
 1;
@@ -669,7 +700,7 @@ Handles all the book-keeping needed to:
 
 =item *
 
-Track execution time
+Track execution time*
 
 =item *
 
@@ -690,6 +721,9 @@ Transform the Log::Work object into something your logging system can handle.
 =back
 
 =back
+
+* NOTE: duration is handled with clock_gettime(CLOCK_MONOTONIC); if your system
+doesn't support this, it won't work, but a fix wouldn't be hard.
 
 =head3 get_current_unit
 
@@ -742,12 +776,12 @@ Stash data is available anywhere the current unit is available.
     sub grubby_sub {
         my $u = Log::Work->get_current_unit();
 
-        set_stash( foo => 11, bar => 12, baz => 13 );
+        $u->set_stash( foo => 11, bar => 12, baz => 13 );
 
         my ($foo, $bar, $baz) = $u->get_stash(qw/ foo bar baz /);
-        my %stash = get_stash();
+        my %stash = $u->get_stash();
 
-        clear_stash( 'bar' );
+        $u->clear_stash( 'bar' );
     }
 
 
@@ -828,6 +862,40 @@ Example:
     has_default_on_error
     get_values
     get_metrics
+
+    yield
+    claim
+
+=head3 Process IDs
+
+A unit of work is created with a specific process ID (PID).  In the event that the UOW is inherited by a child process, that child will be unable to call C<finish> on that PID, unless the child claims the PID.  This helps prevent us from finishing a UOW in two processes, and will make sure the automatic destructor doesn't finish it or make noise.
+
+Example of normal case, where the child exits:
+
+    my $work = Log::Work->start('some_work');
+    if (my $child = fork()) {
+        $work->finish;
+    }
+    else {
+        # child doesn't try to finish $work,
+        # because the child and parent PIDs don't match
+        exit;
+    }
+
+Example of passing control of UOW to the child (you'd probably never want to do this, but if you do):
+
+    my $work = Log::Work->start('some_work');
+    if (my $child = fork()) {
+        # parent process will not try to finish/reap the UOW,
+        # because we passed control to the child
+        $work->yield($child);
+    }
+    else {
+        $work->claim;
+        $work->finish;
+        exit;
+    }
+
 
 =head1 EXPORTS
 

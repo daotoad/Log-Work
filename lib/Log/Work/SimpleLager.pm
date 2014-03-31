@@ -81,7 +81,7 @@ Log::Work::SimpleLager - Make it easier to use Log::Work with Log::Lager
 
 Log::Work::SimpleLager is exists to simplify the use of Log::Lager and Log::Work together.  It is entirely possible to use these two systems together without using Log::Work::SimpleLager.
 
-When used, Log::Lager does a few simple things:
+When used, Log::Work::SimpleLager does a few simple things:
 
 =over
 
