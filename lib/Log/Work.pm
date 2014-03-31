@@ -1,5 +1,5 @@
 package Log::Work;
-# ABSTRACT:  Break tasks into labeld units of work that are trackable across hosts and helper systems.
+# ABSTRACT:  Break tasks into labeled units of work that are trackable across hosts and helper systems.
 
 use strict;
 use warnings;
@@ -7,7 +7,7 @@ use warnings;
 use Log::Work::ProvenanceId;
 use Log::Work::Util qw< _set_handler first_external_package >;
 
-use Time::HiRes qw( time );
+use Time::HiRes qw( time clock_gettime CLOCK_MONOTONIC );
 use Scalar::Util qw(weaken blessed reftype );
 use Carp qw( croak );
 
@@ -102,8 +102,8 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             parent      children
             id          counter
             name        namespace
-            start_time  end_time
-            finished    duration
+            start_time  end_time    start_clock end_clock
+            finished    duration    duration_s  duration_ms
             result      result_code
             metrics     values
             return_values
@@ -350,6 +350,7 @@ sub start {
         namespace   => $package,
 
         start_time  => time,
+        start_clock => clock_gettime(CLOCK_MONOTONIC),
         end_time    => undef,
         result      => undef,
         finished    => undef,
@@ -411,7 +412,9 @@ sub finish {
             package     => 'INVALID',
 
             start_time  => time,
+            start_clock => clock_gettime(CLOCK_MONOTONIC),
             end_time    => undef,
+            end_clock   => undef,
             result      => undef,
             finished    => undef,
 
@@ -430,8 +433,9 @@ sub finish {
     my @children = $self->get_children;
     $_->finish for grep !$_->{finished}, grep defined, @children;
 
+    $self->{end_clock}   = clock_gettime(CLOCK_MONOTONIC);
     $self->{end_time}    = time;
-    $self->{duration_s}  = $self->{end_time} - $self->{start_time};
+    $self->{duration_s}  = $self->{end_clock} - $self->{start_clock};
     $self->{duration_ms} = int( ($self->{duration_s}) * 1000 );
     $self->{duration}    = $self->{duration_s}; # "duration" is deprecated
 
@@ -679,7 +683,7 @@ Handles all the book-keeping needed to:
 
 =item *
 
-Track execution time
+Track execution time*
 
 =item *
 
@@ -700,6 +704,9 @@ Transform the Log::Work object into something your logging system can handle.
 =back
 
 =back
+
+* NOTE: duration is handled with clock_gettime(CLOCK_MONOTONIC); if your system
+doesn't support this, it won't work, but a fix wouldn't be hard.
 
 =head3 get_current_unit
 
