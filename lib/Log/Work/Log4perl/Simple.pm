@@ -74,18 +74,32 @@ sub start {
     return $self;
 }
 
+# when we create a UOW, we push them onto @UNITS.  then we can see the most recently
+# added UOW by checking its tail.  we then try to remove it when we finish(),
+# and skip it in get_work() if it has been finished and didn't get removed.
 sub finish {
     my($self) = @_;
 
     $self->RESULT_NORMAL() unless $self->has_result;
-
     my $return = $self->SUPER::finish;
+
+    my @units;
+    for my $u (@UNITS) {
+        # keep the unit if it exists, and it has an ID, and its ID is not our ID
+        push @units, $u if $u && ref($u) && $u->{id} && $u->{id} ne $self->{id};
+    }
+    @UNITS = @units;
 
     return $return;
 }
 
 sub get_work {
-    return $UNITS[-1];
+    # return most recently created unit ...
+    for my $idx (reverse(0..$#UNITS)) {
+        # ... unless it's been finished
+        return $UNITS[$idx] unless $UNITS[$idx]->is_finished;
+    }
+    return;
 }
 
 "won't get fooled again";
