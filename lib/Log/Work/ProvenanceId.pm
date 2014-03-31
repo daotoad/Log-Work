@@ -12,7 +12,7 @@ our @CARP_NOT = qw( Log::Work Log::Lager Log::Lager::Message );
 my $IDBASE;
 my $IP;
 my $TIME;
-my $RAND;
+my $LASTTIME;
 my $COUNTER = 0;
 
 my $RX_STRICT_PRODUCT_IDENTIFIER = qr/[A-Za-z]\w*/;
@@ -73,13 +73,18 @@ sub new_root_id {
 
     $IP = _get_ip()
         unless defined $IP;
-    $TIME = time
-        unless defined $TIME;
-    $RAND = rand( 10000)
-        unless defined $RAND;
+    $TIME = time;
 
-    return sprintf "%s.%s.%0d.%10d.%04d.%0d:",
-        $base, $IP, $$, $TIME, $RAND, $COUNTER++,
+    if ($LASTTIME && $LASTTIME eq $TIME) {
+        $COUNTER++;
+    }
+    else {
+        $LASTTIME = $TIME;
+        $COUNTER = 0;
+    }
+
+    return sprintf "%s.%s.%0d.%10d.%0d:",
+        $base, $IP, $$, $TIME, $COUNTER,
 
 }
 
