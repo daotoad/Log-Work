@@ -41,7 +41,7 @@ sub new {
 
     my $options       = ref $_[0] eq "HASH" ? shift : {};
     my $layout_string = '[["%X{time}","%X{type}","%p","%H","%X{program}",%P,"%X{threadid}","%X{contextid}","%C","%X{name}"],' .
-        '{"file":"%F","method":"%M","line":%L,%m}]%n';
+        '{"%X{logtype}":{%m},"file":"%F","method":"%M","line":%L}]%n';
 
     $class->SUPER::new($options, $layout_string);
 }
@@ -56,20 +56,26 @@ sub render {
     my $logwork = Log::Work->get_current_unit || {};
 
     my $type = $logwork->{type} || 'EVENT';
+    my $program = $logwork->{program};
+    if (!$program) {
+        ($program = $0) =~ s/^.*?([^\/]+)$/$1/;
+    }
 
     # we generate the time instead of using log4perl ("%d{yyyy-MM-dd}T%d{HH:mm:ss.SSSZ}")
     # because i want it in GMT and can't find a way to do that in log4perl
     Log::Log4perl::MDC->put('time',         _time_to_iso8601(time()));
     Log::Log4perl::MDC->put('type',         $type);
-    Log::Log4perl::MDC->put('program',      $logwork->{program} || $0);
+    Log::Log4perl::MDC->put('program',      $program);
     Log::Log4perl::MDC->put('threadid',     'main');
-    Log::Log4perl::MDC->put('contextid',    $logwork->{id} || '');
+    Log::Log4perl::MDC->put('contextid',    $logwork->{id} || '-');
     Log::Log4perl::MDC->put('name',         $logwork->{name} || lc($type));
 
     if ($type eq 'UOW') {
+        Log::Log4perl::MDC->put('logtype', 'uow');
         $message = _format_uow($logwork);
     }
     else {
+        Log::Log4perl::MDC->put('logtype', 'event');
         $message = _format_event($logwork, $message);
     }
 
@@ -88,9 +94,9 @@ sub _format_uow {
     };
 
     $uow->{uow}{metrics}    = $self->{metrics} if keys %{$self->{metrics}};
-    $uow->{values}          = $self->{values}  if keys %{$self->{values}};
+    $uow->{uow}{values}     = $self->{values}  if keys %{$self->{values}};
 
-    return _format_json($uow);
+    return _format_json(uow => $uow);
 }
 
 sub _format_event {
@@ -98,18 +104,22 @@ sub _format_event {
     (my $msg = $message) =~ s/\n/\|/g;
     my $event = {
         event => {
-            message     => $msg
+            message => $msg
         }
     };
 
-    $event->{values} = $self->{values} if keys %{$self->{values}};
+    $event->{event}{values} = $self->{values}  if keys %{$self->{values}};
 
-    return _format_json($event);
+    return _format_json(event => $event);
 }
 
 sub _format_json {
-    my($data, $no_strip) = @_;
-    my $formatted = JSON::XS::encode_json($data);
+    my($key, $data, $no_strip) = @_;
+
+    my($value) = $data->{$key};
+    return unless $value;
+
+    my $formatted = JSON::XS::encode_json($value);
     unless ($no_strip) {
         $formatted =~ s/^{//;
         $formatted =~ s/}$//;
