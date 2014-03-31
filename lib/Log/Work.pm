@@ -101,7 +101,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
     my @ATTRIBUTES = qw(
             parent      children
             id          counter
-            name        namespace
+            name        namespace   pid
             start_time  end_time    start_clock end_clock
             finished    duration    duration_s  duration_ms
             result      result_code
@@ -126,7 +126,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
 sub DESTROY {
     my $self = shift;
 
-    unless ($self->is_finished) {
+    if ($self->{pid} eq $$ && !$self->is_finished) {
         _error('Work destroyed before finishing.', $self);
         $self->finish;
     }
@@ -348,6 +348,7 @@ sub start {
         id          => $pvid,
         name        => $name,
         namespace   => $package,
+        pid         => $$,
 
         start_time  => time,
         start_clock => clock_gettime(CLOCK_MONOTONIC),
@@ -410,6 +411,7 @@ sub finish {
             id          => 'INVALID',
             name        => 'INVALID',
             package     => 'INVALID',
+            pid         => $$,
 
             start_time  => time,
             start_clock => clock_gettime(CLOCK_MONOTONIC),
@@ -422,6 +424,9 @@ sub finish {
             values      => {},
         );
     }
+
+    # we only close work owned by this PID
+    return if $self->{pid} ne $$;
 
     if( $self->{finished} ) {
         local $self->{finished} = undef;
@@ -619,6 +624,18 @@ sub has_result {
     my $self = &__shift_obj;
 
     return defined $self->{result};
+}
+
+sub yield {
+    my $self = &__shift_obj;
+
+    $self->{pid} = shift;
+}
+
+sub claim {
+    my $self = &__shift_obj;
+
+    $self->{pid} = $$;
 }
 
 1;
@@ -845,6 +862,40 @@ Example:
     has_default_on_error
     get_values
     get_metrics
+
+    yield
+    claim
+
+=head3 Process IDs
+
+A unit of work is created with a specific process ID (PID).  In the event that the UOW is inherited by a child process, that child will be unable to call C<finish> on that PID, unless the child claims the PID.  This helps prevent us from finishing a UOW in two processes, and will make sure the automatic destructor doesn't finish it or make noise.
+
+Example of normal case, where the child exits:
+
+    my $work = Log::Work->start('some_work');
+    if (my $child = fork()) {
+        $work->finish;
+    }
+    else {
+        # child doesn't try to finish $work,
+        # because the child and parent PIDs don't match
+        exit;
+    }
+
+Example of passing control of UOW to the child (you'd probably never want to do this, but if you do):
+
+    my $work = Log::Work->start('some_work');
+    if (my $child = fork()) {
+        # parent process will not try to finish/reap the UOW,
+        # because we passed control to the child
+        $work->yield($child);
+    }
+    else {
+        $work->claim;
+        $work->finish;
+        exit;
+    }
+
 
 =head1 EXPORTS
 
