@@ -1,6 +1,16 @@
-use Test::More tests => 5;
+use Test::More;
+BEGIN {
+    eval {
+        require Log::Lager;
+        1;
+    } or do {
+        diag( "Attempting to load Log::Lager...\n", $@ );
+        plan skip_all => "Log::Lager is not available";
+    };
+}
 
 BEGIN {
+    plan tests => 5;
     use_ok( 'Log::Work::ProvenanceId', 'Test.t02' );
     use_ok( 'Log::Work::SimpleLager', qw(:simple));
 }

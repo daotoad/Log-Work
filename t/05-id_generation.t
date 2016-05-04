@@ -1,4 +1,13 @@
-use Test::More tests => 22;
+use Test::More;
+BEGIN {
+    eval {
+        require Log::Lager;
+        plan tests => 22;
+        1;
+    } or do {
+        plan skip_all => 'Log::Lager is not available';
+    }
+}
 
 use strict;
 use warnings;
