@@ -6,10 +6,14 @@ use Data::Dumper;
 
 {   ## Test standard life cycle.
     Log::Work->on_error( sub{ fail( 'some test generated an error' ) } );
+    my $started = 0;
     my $finished = 0;
+    Log::Work->on_start( sub{ $started++; return shift } );
     Log::Work->on_finish( sub{ $finished++ } );
 
     my $outer = Log::Work->start( Outer => undef, 'PV.id');
+    isa_ok( $outer, 'Log::Work' );
+    is( $started, 1, 'Outer work started' );
     is( scalar $outer->get_children, 0, 'Outer object has no children');
     is( $outer->get_parent, undef, 'Outer object has no parent');
     is( $outer->get_top_unit, $outer, 'Outer object is top unit');
@@ -24,6 +28,7 @@ use Data::Dumper;
             is( $outer->get_top_unit, $outer, 'Step: Outer object is top unit');
 
             $inner = Log::Work->start('Inner');
+            is( $started, 2, 'Inner work started' );
 
             is( scalar $outer->get_children, 1, 'Step: Outer has one child');
             is( $outer->get_parent, undef, 'Step: Outer object has no parent');

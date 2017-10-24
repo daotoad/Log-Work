@@ -90,9 +90,11 @@ our %EXPORT_TAGS = (
 # managed via dynamic scoping using local().
 our $CURRENT_UNIT = undef;
 
+our $DEFAULT_ON_START  = sub { return shift };
 our $DEFAULT_ON_ERROR  = sub { warn "@_" };
 our $DEFAULT_ON_FINISH = sub { return shift };
 
+our $ON_START  = $DEFAULT_ON_START;
 our $ON_ERROR  = $DEFAULT_ON_ERROR;
 our $ON_FINISH = $DEFAULT_ON_FINISH;
 
@@ -148,7 +150,7 @@ sub __check_obj {
     }
 
     unshift @_, $self if $_[0] && $self != $_[0];
-} 
+}
 
 
 
@@ -185,6 +187,11 @@ BEGIN {
     }
 }
 
+sub on_start {
+    shift; # Remove invocant
+    _set_handler( \$ON_START, $DEFAULT_ON_START, @_ );
+    return;
+}
 
 sub on_error {
     shift; # Remove invocant
@@ -204,6 +211,10 @@ sub has_default_on_finish {
 
 sub has_default_on_error {
     return $ON_ERROR eq $DEFAULT_ON_ERROR;
+}
+
+sub has_default_on_start {
+    return $ON_START eq $DEFAULT_ON_START;
 }
 
 
@@ -368,7 +379,7 @@ sub start {
         _error( 'Attempt to use invalid provenance id', $pvid_in, $self );
     }
 
-    return $self;
+    return $ON_START->($self);
 }
 
 
@@ -845,6 +856,7 @@ Example:
     start
 
     on_error
+    on_start
     on_finish
     step
     set_result
