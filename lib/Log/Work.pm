@@ -106,7 +106,7 @@ our $ON_FINISH = $DEFAULT_ON_FINISH;
             name        namespace   pid
             start_time  end_time    start_clock end_clock
             finished    duration    duration_s  duration_ms
-            result      result_code
+            result     
             metrics     values
             return_values
             return_exception
@@ -464,9 +464,9 @@ sub finish {
     return $ON_FINISH->( $self );
 }
 
-sub is_finished { 
+sub is_finished {
     my $self = &__shift_obj;
-    return $self->{finished} ? 1 : undef; 
+    return $self->{finished} ? 1 : undef;
 }
 
 sub _error {
@@ -641,6 +641,31 @@ sub yield {
     my $self = &__shift_obj;
 
     $self->{pid} = shift;
+}
+
+sub get_collected_data {
+    my $self = &__shift_obj;
+
+    my %data;
+    my @fields = qw<
+            id         
+            name
+            namespace
+            start_time 
+            end_time
+            duration
+            duration_s
+            duration_ms
+            result
+            return_values
+            return_exception
+    >;
+    @data{@fields}  = @{$self}{@fields};
+    $data{metrics}  = { %{$self->_metrics()}    };
+    $data{values}   = { %{$self->_values()}     };
+    $data{stash}    = { $self->get_stash        };
+
+    return wantarray ? %data : \%data;
 }
 
 sub claim {

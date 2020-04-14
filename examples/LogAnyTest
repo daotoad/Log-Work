@@ -1,0 +1,77 @@
+#!/bin/env perl
+
+use Log::Any qw( $log );
+use Log::Any::Adapter;
+
+use JSON;
+
+use strict;
+use warnings;
+
+use Log::Work::ProvenanceId 'LogAny.Example';
+use Log::Work;
+
+our $JSON = JSON->new->ascii->canonical->indent(0);
+
+Log::Any::Adapter->set('Stderr');
+Log::Work->on_start(sub {
+    my ($work) = shift;
+
+    $work->set_stash( LogAny_logger => $log,  LogAny_level => 'info');
+
+    warn "Holy shift its started";
+ 
+    return $work;
+});
+
+Log::Work->on_finish(sub {
+    my ($work) = shift;
+
+    my ($log, $level) = $work->get_stash(qw/ LogAny_logger LogAny_level /);
+    $level ||= 'info';
+
+    my %data = $work->get_collected_data;
+    delete $data{stash};
+    my $formatted = $JSON->encode( \%data );
+    
+    warn "OMFG $log at $level is finished";
+    $log->$level( $formatted ); 
+    return $work;
+});
+
+
+WORK {
+
+    $log->info("Doing some work here");
+    sleep 2;
+
+    RESULT_NORMAL;
+
+} 'Getter done';
+
+
+=pod
+
+[
+    [
+        "%X{time}",
+        "%X{type}",
+        "%X{log_level}",
+        "%X{hostname}",
+        "%X{program}",
+        "%X{pid}",
+        "%X{threadid}",
+        "%X{provenance_id}",
+        "%X{context_name}"
+    ],
+    {
+        "%X{logtype}":{%m},
+        "file":"%F",
+        "method":"%M",
+        "line":%L
+    }
+]
+
+=cut
+
+1;
